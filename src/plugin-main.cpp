@@ -47,6 +47,7 @@ obs_output_t* recording = nullptr;
 vector<uint64_t> chapters;
 uint32_t num=0, den=0;
 string filename = "";
+bool isMKV = false;
 
 obs_hotkey_id chapterMarkerHotkey = OBS_INVALID_HOTKEY_ID;
 bool hotkeysRegistered = false;
@@ -98,7 +99,7 @@ auto HotkeyFunc = [](void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pr
     UNUSED_PARAMETER(data);
     UNUSED_PARAMETER(hotkey);
 
-    if (pressed && obs_frontend_recording_active()) {
+    if (pressed && obs_frontend_recording_active() && isMKV) {
         chapters.push_back(getOutputRunningTime(recording));
     }
 };
@@ -161,6 +162,17 @@ void loadHotkeys(obs_data_t* obj) {
 }
 
 
+bool checkMKV() {
+    isMKV = false; // reset
+    regex re(".mkv$");
+    smatch m;
+    regex_search(filename, m, re);
+    if (m.size() == 1)
+        isMKV = true;
+    return isMKV;
+}
+
+
 // Callback for when a recording stops
 // Remaking the outputted video file with the chapters metadata
 auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
@@ -168,6 +180,7 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
         chapters.clear();
         recording = obs_frontend_get_recording_output();
         filename = GetCurrentRecordingFilename();
+        checkMKV();
         /*
         auto info = video_output_get_info(obs_output_video(recording));
         // den/num, perfect for use with metadata timebase and inputting frames
@@ -206,8 +219,8 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
         ss2 << "powershell \"rm \"'" + metadata + "'\"";
         ss3 << "powershell \"rm \"'" + filename + "'\"";
         WinExec(ss.str().c_str(), SW_HIDE);
-        WinExec(ss2.str().c_str(), SW_HIDE);
-        WinExec(ss3.str().c_str(), SW_HIDE);
+        //WinExec(ss2.str().c_str(), SW_HIDE);
+        //WinExec(ss3.str().c_str(), SW_HIDE);
 //#elif __linux__ ||  __unix__ || defined(_POSIX_VERSION)
 //#elif __APPLE__
 #else
@@ -230,6 +243,7 @@ bool obs_module_load(void) {
     
 
     /*
+    // For easy debugging
     if (AllocConsole())
         blog(LOG_INFO, "alloc console succeeded");
     else {
