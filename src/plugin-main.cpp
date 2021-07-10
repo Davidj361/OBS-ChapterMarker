@@ -22,7 +22,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "plugin-macros.generated.h"
 #include "plugin-main.hpp"
 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #include <Windows.h>
+#endif
 #include <stdio.h>
 #include <vector>
 #include <string>
@@ -119,19 +121,16 @@ void createSettingsDir() {
 
 
 void saveSettings() {
-    printf("Saving..\n");
     if (!filesystem::exists(obs_module_config_path("")))
         createSettingsDir();
     obs_data_t* obj = obs_data_create();
     saveHotkeys(obj);
     char* file = obs_module_config_path(configFile);
-    printf("%s\n", file);
     obs_data_save_json(obj, file);
     obs_data_release(obj);
 }
 
 void loadSettings() {
-    printf("Loading..\n");
     char* file = obs_module_config_path(configFile);
     obs_data_t* obj = obs_data_create_from_json_file(file);
     loadHotkeys(obj);
@@ -201,22 +200,25 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
             writeChapter(file, frame, i++);
         file.close();
 
-        stringstream ss("");
+        stringstream ss(""), ss2(""), ss3("");
         ss << "ffmpeg -i \"" + filename + "\" -i \"" + metadata + "\" -map_metadata 1 -c copy \"" + newFilename + "\" -y";
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-        //define something for Windows (32-bit and 64-bit, this part is common)
+        ss2 << "powershell \"rm \"'" + metadata + "'\"";
+        ss3 << "powershell \"rm \"'" + filename + "'\"";
         WinExec(ss.str().c_str(), SW_HIDE);
+        WinExec(ss2.str().c_str(), SW_HIDE);
+        WinExec(ss3.str().c_str(), SW_HIDE);
 //#elif __linux__ ||  __unix__ || defined(_POSIX_VERSION)
 //#elif __APPLE__
 #else
         // Easiest fallback
+        ss2 << "m \"'" + metadata + "'";
+        ss3 << "rm \"'" + filename + "'";
         system(ss.str().c_str());
+        system(ss2.str().c_str());
+        system(ss3.str().c_str());
 #endif
-
-        // TODO Maybe delete files later?
-        // Tried deleting but it breaks WinExec from race condition
-        //remove(metadata.c_str());
 
     }
     else if (event == OBS_FRONTEND_EVENT_EXIT)
@@ -228,6 +230,7 @@ bool obs_module_load(void) {
     blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
     
 
+    /*
     if (AllocConsole())
         blog(LOG_INFO, "alloc console succeeded");
     else {
@@ -237,6 +240,7 @@ bool obs_module_load(void) {
     FILE* fDummy = NULL;
     freopen_s(&fDummy, "CONOUT$", "w", stdout);
     printf("Hello console\n");
+    */
 
 
     loadSettings();
