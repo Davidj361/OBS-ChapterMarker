@@ -14,4 +14,4 @@ set(Qt5_DIR "C:/Users/DJ/source/repos/Qt/5.15.2/msvc2019_64/lib/cmake/Qt5")
 set(OBS_FRONTEND_LIB "C:/Users/DJ/source/repos/obs-studio/build/UI/obs-frontend-api/Release/obs-frontend-api.lib")
 ```
 
-**Note**: uses C++17
+**Note**: uses C++17 and the project was created off [https://github.com/obsproject/obs-plugintemplate](https://github.com/obsproject/obs-plugintemplate).
