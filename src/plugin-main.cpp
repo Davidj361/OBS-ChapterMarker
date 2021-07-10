@@ -36,6 +36,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <iterator>
 #include <cstdio>
 #include <filesystem>
+#include <chrono>
+#include <thread>
+
 
 using namespace std;
 
@@ -219,15 +222,21 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
         ss2 << "powershell \"rm \"'" + metadata + "'\"";
         ss3 << "powershell \"rm \"'" + filename + "'\"";
         WinExec(ss.str().c_str(), SW_HIDE);
-        //WinExec(ss2.str().c_str(), SW_HIDE);
-        //WinExec(ss3.str().c_str(), SW_HIDE);
+        do {
+            this_thread::sleep_for(chrono::milliseconds(100));
+        } while (!filesystem::exists(newFilename));
+        WinExec(ss2.str().c_str(), SW_HIDE);
+        WinExec(ss3.str().c_str(), SW_HIDE);
 //#elif __linux__ ||  __unix__ || defined(_POSIX_VERSION)
 //#elif __APPLE__
 #else
         // Easiest fallback
-        ss2 << "m \"'" + metadata + "'";
+        ss2 << "rm \"'" + metadata + "'";
         ss3 << "rm \"'" + filename + "'";
         system(ss.str().c_str());
+        do {
+            this_thread::sleep_for(chrono::milliseconds(100));
+        } while (!filesystem::exists(newFilename));
         system(ss2.str().c_str());
         system(ss3.str().c_str());
 #endif
