@@ -59,7 +59,9 @@ set(PLUGIN_SOURCES
 	src/plugin-main.cpp)
 
 set(PLUGIN_HEADERS
-	src/plugin-macros.generated.h)
+	src/plugin-macros.generated.h
+	src/plugin-main.hpp
+)
 
 # --- Platform-independent build settings ---
 add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES} ${PLUGIN_HEADERS})
