@@ -26,6 +26,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <Windows.h>
 #endif
 #include <stdio.h>
+#include <inttypes.h>
 #include <vector>
 #include <string>
 #include <iostream>
@@ -51,6 +52,8 @@ vector<uint64_t> chapters;
 uint32_t num=0, den=0;
 string filename = "";
 bool isMKV = false;
+chrono::steady_clock::time_point start;
+uint64_t elapsed;
 
 obs_hotkey_id chapterMarkerHotkey = OBS_INVALID_HOTKEY_ID;
 bool hotkeysRegistered = false;
@@ -78,21 +81,10 @@ const char* GetCurrentRecordingFilename()
 }
 
 
-// Gets how many nanoseconds currently recording
-uint64_t getOutputRunningTime(obs_output_t* output) {
-    if (!output || !obs_output_active(output)) {
-        return 0;
-    }
-
-    video_t* video = obs_output_video(output);
-    uint64_t frameTimeNs = video_output_get_frame_time(video);
-    int totalFrames = obs_output_get_total_frames(output);
-
-    // return (((uint64_t)totalFrames) * frameTimeNs);
-    uint64_t ns = (((uint64_t)totalFrames) * frameTimeNs);
-    uint64_t ms = ns / 1000000ULL;
-    //uint64_t secs = ms / 1000ULL;
-    return ms;
+int getOutputRunningTime() {
+    auto finish = chrono::steady_clock::now();
+    uint64_t dur = chrono::duration_cast<chrono::milliseconds>(finish - start).count() + elapsed;
+    return dur;
 }
 
 
@@ -103,16 +95,16 @@ auto HotkeyFunc = [](void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pr
     UNUSED_PARAMETER(hotkey);
 
     if (pressed && obs_frontend_recording_active() && isMKV) {
-        chapters.push_back(getOutputRunningTime(recording));
+        chapters.push_back(getOutputRunningTime());
     }
 };
 
 
-void writeChapter(ofstream& f, const uint64_t& frame, int i) {
+void writeChapter(ofstream& f, const uint64_t& t, int i) {
     f << "[CHAPTER]" << endl;
     f << "TIMEBASE=1/1000" << endl;
-    f << "START=" + to_string(frame) << endl;
-    f << "END=" + to_string(frame) << endl;
+    f << "START=" << to_string(t) << endl;
+    f << "END=" << to_string(t) << endl;
     f << "title=" << to_string(i) << endl << endl;
 }
 
@@ -179,71 +171,93 @@ bool checkMKV() {
 // Callback for when a recording stops
 // Remaking the outputted video file with the chapters metadata
 auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
-    if (event == OBS_FRONTEND_EVENT_RECORDING_STARTED) {
-        chapters.clear();
-        recording = obs_frontend_get_recording_output();
-        filename = GetCurrentRecordingFilename();
-        checkMKV();
-        /*
-        auto info = video_output_get_info(obs_output_video(recording));
-        // den/num, perfect for use with metadata timebase and inputting frames
-        num = info->fps_num;
-        den = info->fps_den;
-        */
-    } else if (event == OBS_FRONTEND_EVENT_RECORDING_STOPPED) {
-        if (chapters.size() == 0)
-            return;
+	switch (event) {
+	case OBS_FRONTEND_EVENT_RECORDING_STARTED: {
+		chapters.clear();
+		recording = obs_frontend_get_recording_output();
+		filename = GetCurrentRecordingFilename();
+		if (checkMKV()) {
+			start = chrono::steady_clock::now();
+			elapsed = 0;
+		}
+		/*
+		auto info = video_output_get_info(obs_output_video(recording));
+		// den/num, perfect for use with metadata timebase and inputting frames
+		num = info->fps_num;
+		den = info->fps_den;
+		*/
+		break;
+	}
 
-        // copy the encoding but give it metadata of chapters
-        regex re("(.*)\\.mkv$");
-        smatch m;
-        regex_search(filename, m, re);
-        if (m.size() < 2) {
-            string err = "ChapterMarker Plugin didn't find filename of recording";
-            // TODO Do a popup message box before throwing
-            throw runtime_error(err);
-        }
-        string newFilename = m[1].str() + " - ChapterMarker.mkv";
+    case OBS_FRONTEND_EVENT_RECORDING_PAUSED: {
+        auto finish = chrono::steady_clock::now();
+        elapsed += chrono::duration_cast<chrono::milliseconds>(finish - start).count();
+        break;
+    }
 
-        // create chapters for metadata file
-        string metadata = filename + ".metadata";
-        ofstream file;
-        file.open(metadata);
-        file << ";FFMETADATA1\n\n";
-        int i = 1;
-        for (uint64_t& frame : chapters)
-            writeChapter(file, frame, i++);
-        file.close();
+    case OBS_FRONTEND_EVENT_RECORDING_UNPAUSED: {
+        start = chrono::steady_clock::now();
+        break;
+    }
 
-        stringstream ss(""), ss2(""), ss3("");
-        ss << "ffmpeg -i \"" + filename + "\" -i \"" + metadata + "\" -map_metadata 1 -c copy \"" + newFilename + "\" -y";
+	case OBS_FRONTEND_EVENT_RECORDING_STOPPED: {
+		if (chapters.size() == 0)
+			return;
+
+		// copy the encoding but give it metadata of chapters
+		regex re("(.*)\\.mkv$");
+		smatch m;
+		regex_search(filename, m, re);
+		if (m.size() < 2) {
+			string err = "ChapterMarker Plugin didn't find filename of recording";
+			// TODO Do a popup message box before throwing
+			throw runtime_error(err);
+		}
+		string newFilename = m[1].str() + " - ChapterMarker.mkv";
+
+		// create chapters for metadata file
+		string metadata = filename + ".metadata";
+		ofstream file;
+		file.open(metadata);
+		file << ";FFMETADATA1\n\n";
+		int i = 1;
+		for (const uint64_t& time : chapters)
+			writeChapter(file, time, i++);
+		file.close();
+
+		stringstream ss(""), ss2(""), ss3("");
+		ss << "ffmpeg -i \"" + filename + "\" -i \"" + metadata + "\" -map_metadata 1 -c copy \"" + newFilename + "\" -y";
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-        ss2 << "powershell \"rm \"'" + metadata + "'\"";
-        ss3 << "powershell \"rm \"'" + filename + "'\"";
-        WinExec(ss.str().c_str(), SW_HIDE);
-        do {
-            this_thread::sleep_for(chrono::milliseconds(100));
-        } while (!filesystem::exists(newFilename));
-        WinExec(ss2.str().c_str(), SW_HIDE);
-        WinExec(ss3.str().c_str(), SW_HIDE);
-//#elif __linux__ ||  __unix__ || defined(_POSIX_VERSION)
-//#elif __APPLE__
+		ss2 << "powershell \"rm \"'" + metadata + "'\"";
+		ss3 << "powershell \"rm \"'" + filename + "'\"";
+		WinExec(ss.str().c_str(), SW_HIDE);
+		do {
+			this_thread::sleep_for(chrono::milliseconds(100));
+		} while (!filesystem::exists(newFilename));
+		WinExec(ss2.str().c_str(), SW_HIDE);
+		WinExec(ss3.str().c_str(), SW_HIDE);
+		//#elif __linux__ ||  __unix__ || defined(_POSIX_VERSION)
+		//#elif __APPLE__
 #else
-        // Easiest fallback
-        ss2 << "rm \"'" + metadata + "'";
-        ss3 << "rm \"'" + filename + "'";
-        system(ss.str().c_str());
-        do {
-            this_thread::sleep_for(chrono::milliseconds(100));
-        } while (!filesystem::exists(newFilename));
-        system(ss2.str().c_str());
-        system(ss3.str().c_str());
+		// Easiest fallback
+		ss2 << "rm \"'" + metadata + "'";
+		ss3 << "rm \"'" + filename + "'";
+		system(ss.str().c_str());
+		do {
+			this_thread::sleep_for(chrono::milliseconds(100));
+		} while (!filesystem::exists(newFilename));
+		system(ss2.str().c_str());
+		system(ss3.str().c_str());
 #endif
 
-    }
-    else if (event == OBS_FRONTEND_EVENT_EXIT)
-        saveSettings();
+		break;
+	}
+
+	case OBS_FRONTEND_EVENT_EXIT:
+		saveSettings();
+		break;
+	}
 };
 
 
