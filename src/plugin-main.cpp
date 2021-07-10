@@ -98,7 +98,6 @@ auto HotkeyFunc = [](void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pr
     UNUSED_PARAMETER(data);
     UNUSED_PARAMETER(hotkey);
 
-    saveSettings();
     if (pressed && obs_frontend_recording_active()) {
         chapters.push_back(getOutputRunningTime(recording));
     }
