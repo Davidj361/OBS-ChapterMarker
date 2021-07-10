@@ -6,7 +6,7 @@ set(PLUGIN_AUTHOR "David J")
 
 set(MACOS_BUNDLEID "com.example.obs-chaptermarker")
 
-set(LINUX_MAINTAINER_EMAIL "david.j.361@gmail.com")
+set(MAINTAINER_EMAIL "david.j.361@gmail.com")
 
 # Hackish CMake variables that were added to finally get this working
 set(LIBOBS_LIB "C:/Users/DJ/source/repos/obs-studio/build/libobs/Release")
@@ -23,7 +23,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
 # In case you need C++
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (WIN32 OR APPLE)
@@ -56,7 +56,7 @@ configure_file(
 )
 
 set(PLUGIN_SOURCES
-	src/plugin-main.cc)
+	src/plugin-main.cpp)
 
 set(PLUGIN_HEADERS
 	src/plugin-macros.generated.h)

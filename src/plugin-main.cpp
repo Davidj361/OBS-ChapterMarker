@@ -20,6 +20,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-frontend-api.h>
 #include <obs.h>
 #include "plugin-macros.generated.h"
+#include "plugin-main.hpp"
 
 #include <Windows.h>
 #include <stdio.h>
@@ -32,16 +33,21 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <algorithm>
 #include <iterator>
 #include <cstdio>
+#include <filesystem>
 
 using namespace std;
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
+const static char* configFile = "ChapterMarker.json";
 obs_output_t* recording = nullptr;
 vector<uint64_t> chapters;
 uint32_t num=0, den=0;
 string filename = "";
+
+obs_hotkey_id chapterMarkerHotkey = OBS_INVALID_HOTKEY_ID;
+bool hotkeysRegistered = false;
 
 
 // Get filename
@@ -84,6 +90,19 @@ uint64_t getOutputRunningTime(obs_output_t* output) {
 }
 
 
+// Lambda function for hotkey
+auto HotkeyFunc = [](void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pressed) {
+    UNUSED_PARAMETER(id);
+    UNUSED_PARAMETER(data);
+    UNUSED_PARAMETER(hotkey);
+
+    saveSettings();
+    if (pressed && obs_frontend_recording_active()) {
+        chapters.push_back(getOutputRunningTime(recording));
+    }
+};
+
+
 void writeChapter(ofstream& f, const uint64_t& frame, int i) {
     f << "[CHAPTER]" << endl;
     f << "TIMEBASE=1/1000" << endl;
@@ -93,45 +112,55 @@ void writeChapter(ofstream& f, const uint64_t& frame, int i) {
 }
 
 
-/*
-void saveHotkeys(obs_data_t* obj)
-{
-    obs_data_array_t* startHotkeyArrray = obs_hotkey_save(startHotkey);
-    obs_data_set_array(obj, "startHotkey", startHotkeyArrray);
-    obs_data_array_release(startHotkeyArrray);
-
-    obs_data_array_t* stopHotkeyArrray = obs_hotkey_save(stopHotkey);
-
-    obs_data_set_array(obj, "stopHotkey", stopHotkeyArrray);
-    obs_data_array_release(stopHotkeyArrray);
-
-    obs_data_array_t* toggleHotkeyArrray = obs_hotkey_save(toggleHotkey);
-    obs_data_set_array(obj, "toggleHotkey", toggleHotkeyArrray);
-    obs_data_array_release(toggleHotkeyArrray);
+void createSettingsDir() {
+    char* file = obs_module_config_path("");
+    filesystem::create_directory(file);
 }
 
-void loadHotkeys(obs_data_t* obj)
-{
+
+void saveSettings() {
+    printf("Saving..\n");
+    if (!filesystem::exists(obs_module_config_path("")))
+        createSettingsDir();
+    obs_data_t* obj = obs_data_create();
+    saveHotkeys(obj);
+    char* file = obs_module_config_path(configFile);
+    printf("%s\n", file);
+    obs_data_save_json(obj, file);
+    obs_data_release(obj);
+}
+
+void loadSettings() {
+    printf("Loading..\n");
+    char* file = obs_module_config_path(configFile);
+    obs_data_t* obj = obs_data_create_from_json_file(file);
+    loadHotkeys(obj);
+}
+
+
+void registerHotkeys() {
+    chapterMarkerHotkey = obs_hotkey_register_frontend("ChapterMarker", "Create chapter marker", HotkeyFunc, NULL);
+    hotkeysRegistered = true;
+}
+
+
+void saveHotkeys(obs_data_t* obj) {
+    obs_data_array_t* chapterMarkerHotkeyArrray = obs_hotkey_save(chapterMarkerHotkey);
+    obs_data_set_array(obj, "chapterMarkerHotkey", chapterMarkerHotkeyArrray);
+    obs_data_array_release(chapterMarkerHotkeyArrray);
+}
+
+
+void loadHotkeys(obs_data_t* obj) {
     if (!hotkeysRegistered) {
         registerHotkeys();
     }
 
-    obs_data_array_t* startHotkeyArrray =
-        obs_data_get_array(obj, "startHotkey");
-    obs_hotkey_load(startHotkey, startHotkeyArrray);
-    obs_data_array_release(startHotkeyArrray);
-
-    obs_data_array_t* stopHotkeyArrray =
-        obs_data_get_array(obj, "stopHotkey");
-    obs_hotkey_load(stopHotkey, stopHotkeyArrray);
-    obs_data_array_release(stopHotkeyArrray);
-
-    obs_data_array_t* toggleHotkeyArrray =
-        obs_data_get_array(obj, "toggleHotkey");
-    obs_hotkey_load(toggleHotkey, toggleHotkeyArrray);
-    obs_data_array_release(toggleHotkeyArrray);
+    obs_data_array_t* chapterMarkerHotkeyArrray =
+        obs_data_get_array(obj, "chapterMarkerHotkey");
+    obs_hotkey_load(chapterMarkerHotkey, chapterMarkerHotkeyArrray);
+    obs_data_array_release(chapterMarkerHotkeyArrray);
 }
-*/
 
 
 // Callback for when a recording stops
@@ -178,10 +207,10 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
         //define something for Windows (32-bit and 64-bit, this part is common)
         WinExec(ss.str().c_str(), SW_HIDE);
-        //system(ss.str().c_str());
 //#elif __linux__ ||  __unix__ || defined(_POSIX_VERSION)
 //#elif __APPLE__
 #else
+        // Easiest fallback
         system(ss.str().c_str());
 #endif
 
@@ -190,18 +219,8 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
         //remove(metadata.c_str());
 
     }
-};
-
-
-// Lambda function for hotkey
-auto HotkeyFunc = [](void* data, obs_hotkey_id id , obs_hotkey_t* hotkey, bool pressed) {
-    UNUSED_PARAMETER(id);
-    UNUSED_PARAMETER(data);
-    UNUSED_PARAMETER(hotkey);
-
-    if (pressed && obs_frontend_recording_active()) {
-        chapters.push_back(getOutputRunningTime(recording));
-    }
+    else if (event == OBS_FRONTEND_EVENT_EXIT)
+        saveSettings();
 };
 
 
@@ -232,11 +251,10 @@ auto LoadHotkey = [&](obs_hotkey_id id, const char* name) {
 */
 
 
-bool obs_module_load(void)
-{
+bool obs_module_load(void) {
     blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
     
-    /*
+
     if (AllocConsole())
         blog(LOG_INFO, "alloc console succeeded");
     else {
@@ -246,22 +264,14 @@ bool obs_module_load(void)
     FILE* fDummy = NULL;
     freopen_s(&fDummy, "CONOUT$", "w", stdout);
     printf("Hello console\n");
-    */
 
-    auto hotkey = obs_hotkey_register_frontend("ChapterMarker", "Create chapter marker", HotkeyFunc, NULL);
+
+    loadSettings();
     obs_frontend_add_event_callback(EvenHandler, NULL);
-    //LoadHotkey(hotkey, "ChapterMarker");
     return true;
 }
 
 
-void obs_module_unload()
-{
+void obs_module_unload() {
     blog(LOG_INFO, "plugin unloaded");
-    /*
-    obs_data_t* obj = obs_data_create();
-    saveSettings(obj);
-    obs_data_save_json(obj, file.fileName().toUtf8().constData());
-    obs_data_release(obj);
-    */
 }
