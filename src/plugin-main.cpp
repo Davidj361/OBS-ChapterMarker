@@ -224,33 +224,6 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 };
 
 
-/*
-auto LoadHotkeyData = [&](const char* name) -> OBSData {
-    const char* info =
-        config_get_string(basicConfig, "Hotkeys", name);
-    if (!info)
-        return {};
-
-    obs_data_t* data = obs_data_create_from_json(info);
-    if (!data)
-        return {};
-
-    OBSData res = data;
-    obs_data_release(data);
-    return res;
-};
-
-
-auto LoadHotkey = [&](obs_hotkey_id id, const char* name) {
-    obs_data_array_t* array =
-        obs_data_get_array(LoadHotkeyData(name), "bindings");
-
-    obs_hotkey_load(id, array);
-    obs_data_array_release(array);
-};
-*/
-
-
 bool obs_module_load(void) {
     blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
     
