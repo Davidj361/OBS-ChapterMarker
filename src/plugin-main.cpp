@@ -200,13 +200,24 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 		if (chapters.size() == 0)
 			return;
 
+        // Make sure FFMPEG is actually on the system
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+        if (WinExec("ffmpeg", SW_HIDE) < 32) {
+#else
+        if (System("ffmpeg") == NULL) {
+#endif
+            string err = "ChapterMarker Plugin didn't find FFMPEG!";
+            QMessageBox::critical(0, QString("CRASH!"), QString::fromStdString(err), QMessageBox::Ok);
+            throw runtime_error(err);
+        }
+
 		// copy the encoding but give it metadata of chapters
 		regex re("(.*)\\.mkv$");
 		smatch m;
 		regex_search(filename, m, re);
 		if (m.size() < 2) {
-			string err = "ChapterMarker Plugin didn't find filename of recording";
-			// TODO Do a popup message box before throwing
+			string err = "ChapterMarker Plugin didn't find the filename of the recording!";
+            QMessageBox::critical(0, QString("CRASH!"), QString::fromStdString(err), QMessageBox::Ok);
 			throw runtime_error(err);
 		}
 		string newFilename = m[1].str() + " - ChapterMarker.mkv";
