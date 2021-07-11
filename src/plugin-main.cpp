@@ -29,7 +29,6 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 const static char* configFile = "ChapterMarker.json";
 obs_output_t* recording = nullptr;
 vector<uint64_t> chapters;
-uint32_t num=0, den=0;
 string filename = "";
 bool isMKV = false;
 chrono::steady_clock::time_point start;
@@ -42,125 +41,125 @@ bool hotkeysRegistered = false;
 // Get filename
 const char* GetCurrentRecordingFilename()
 {
-    if (!recording)
-        return nullptr;
-    auto settings = obs_output_get_settings(recording);
+	if (!recording)
+		return nullptr;
+	auto settings = obs_output_get_settings(recording);
 
-    // mimicks the behavior of BasicOutputHandler::GetRecordingFilename :
-    // try to fetch the path from the "url" property, then try "path" if the first one
-    // didn't yield any result
-    auto item = obs_data_item_byname(settings, "url");
-    if (!item) {
-        item = obs_data_item_byname(settings, "path");
-        if (!item) {
-            return nullptr;
-        }
-    }
+	// mimicks the behavior of BasicOutputHandler::GetRecordingFilename :
+	// try to fetch the path from the "url" property, then try "path" if the first one
+	// didn't yield any result
+	auto item = obs_data_item_byname(settings, "url");
+	if (!item) {
+		item = obs_data_item_byname(settings, "path");
+		if (!item) {
+			return nullptr;
+		}
+	}
 
-    return obs_data_item_get_string(item);
+	return obs_data_item_get_string(item);
 }
 
 
 uint64_t getOutputRunningTime() {
-    auto finish = chrono::steady_clock::now();
-    uint64_t dur = chrono::duration_cast<chrono::milliseconds>(finish - start).count() + elapsed;
-    return dur;
+	auto finish = chrono::steady_clock::now();
+	uint64_t dur = chrono::duration_cast<chrono::milliseconds>(finish - start).count() + elapsed;
+	return dur;
 }
 
 
 // Lambda function for hotkey
 auto HotkeyFunc = [](void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pressed) {
-    UNUSED_PARAMETER(id);
-    UNUSED_PARAMETER(data);
-    UNUSED_PARAMETER(hotkey);
+	UNUSED_PARAMETER(id);
+	UNUSED_PARAMETER(data);
+	UNUSED_PARAMETER(hotkey);
 
-    if (pressed && obs_frontend_recording_active() && isMKV) {
-        chapters.push_back(getOutputRunningTime());
-    }
+	if (pressed && obs_frontend_recording_active() && isMKV) {
+		chapters.push_back(getOutputRunningTime());
+	}
 };
 
 
 void writeChapter(ofstream& f, const uint64_t& t, int i) {
-    f << "[CHAPTER]" << endl;
-    f << "TIMEBASE=1/1000" << endl;
-    f << "START=" << to_string(t) << endl;
-    f << "END=" << to_string(t) << endl;
-    f << "title=" << to_string(i) << endl << endl;
+	f << "[CHAPTER]" << endl;
+	f << "TIMEBASE=1/1000" << endl;
+	f << "START=" << to_string(t) << endl;
+	f << "END=" << to_string(t) << endl;
+	f << "title=" << to_string(i) << endl << endl;
 }
 
 
 void createSettingsDir() {
-    char* file = obs_module_config_path("");
-    filesystem::create_directory(file);
+	char* file = obs_module_config_path("");
+	filesystem::create_directory(file);
 }
 
 
 void saveSettings() {
-    if (!filesystem::exists(obs_module_config_path("")))
-        createSettingsDir();
-    obs_data_t* obj = obs_data_create();
-    saveHotkeys(obj);
-    char* file = obs_module_config_path(configFile);
-    obs_data_save_json(obj, file);
-    obs_data_release(obj);
+	if (!filesystem::exists(obs_module_config_path("")))
+		createSettingsDir();
+	obs_data_t* obj = obs_data_create();
+	saveHotkeys(obj);
+	char* file = obs_module_config_path(configFile);
+	obs_data_save_json(obj, file);
+	obs_data_release(obj);
 }
 
 void loadSettings() {
-    char* file = obs_module_config_path(configFile);
-    obs_data_t* obj = obs_data_create_from_json_file(file);
-    loadHotkeys(obj);
+	char* file = obs_module_config_path(configFile);
+	obs_data_t* obj = obs_data_create_from_json_file(file);
+	loadHotkeys(obj);
 }
 
 
 void registerHotkeys() {
-    chapterMarkerHotkey = obs_hotkey_register_frontend("ChapterMarker", "Create chapter marker", HotkeyFunc, NULL);
-    hotkeysRegistered = true;
+	chapterMarkerHotkey = obs_hotkey_register_frontend("ChapterMarker", "Create chapter marker", HotkeyFunc, NULL);
+	hotkeysRegistered = true;
 }
 
 
 void saveHotkeys(obs_data_t* obj) {
-    obs_data_array_t* chapterMarkerHotkeyArrray = obs_hotkey_save(chapterMarkerHotkey);
-    obs_data_set_array(obj, "chapterMarkerHotkey", chapterMarkerHotkeyArrray);
-    obs_data_array_release(chapterMarkerHotkeyArrray);
+	obs_data_array_t* chapterMarkerHotkeyArrray = obs_hotkey_save(chapterMarkerHotkey);
+	obs_data_set_array(obj, "chapterMarkerHotkey", chapterMarkerHotkeyArrray);
+	obs_data_array_release(chapterMarkerHotkeyArrray);
 }
 
 
 void loadHotkeys(obs_data_t* obj) {
-    if (!hotkeysRegistered) {
-        registerHotkeys();
-    }
+	if (!hotkeysRegistered) {
+		registerHotkeys();
+	}
 
-    obs_data_array_t* chapterMarkerHotkeyArrray =
-        obs_data_get_array(obj, "chapterMarkerHotkey");
-    obs_hotkey_load(chapterMarkerHotkey, chapterMarkerHotkeyArrray);
-    obs_data_array_release(chapterMarkerHotkeyArrray);
+	obs_data_array_t* chapterMarkerHotkeyArrray =
+		obs_data_get_array(obj, "chapterMarkerHotkey");
+	obs_hotkey_load(chapterMarkerHotkey, chapterMarkerHotkeyArrray);
+	obs_data_array_release(chapterMarkerHotkeyArrray);
 }
 
 
 bool checkMKV() {
-    isMKV = false; // reset
-    regex re(".mkv$");
-    smatch m;
-    regex_search(filename, m, re);
-    if (m.size() == 1)
-        isMKV = true;
-    return isMKV;
+	isMKV = false; // reset
+	regex re(".mkv$");
+	smatch m;
+	regex_search(filename, m, re);
+	if (m.size() == 1)
+		isMKV = true;
+	return isMKV;
 }
 
 
 
 // A crappy way to synchronously delete and rename files, especially needed for waiting for FFMPEG to finish
 void cleanupFiles(const string& filename, const string& newFilename, const string& metadata) {
-    int delay = 100;
-    do {
-        this_thread::sleep_for(chrono::milliseconds(delay));
-    } while (!filesystem::exists(newFilename));
-    remove(metadata.c_str());
-    remove(filename.c_str());
-    do {
-        this_thread::sleep_for(chrono::milliseconds(delay));
-    } while (filesystem::exists(filename));
-    rename(newFilename.c_str(), filename.c_str());
+	int delay = 100;
+	do {
+		this_thread::sleep_for(chrono::milliseconds(delay));
+	} while (!filesystem::exists(newFilename));
+	remove(metadata.c_str());
+	remove(filename.c_str());
+	do {
+		this_thread::sleep_for(chrono::milliseconds(delay));
+	} while (filesystem::exists(filename));
+	rename(newFilename.c_str(), filename.c_str());
 }
 
 
@@ -176,40 +175,34 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 			start = chrono::steady_clock::now();
 			elapsed = 0;
 		}
-		/*
-		auto info = video_output_get_info(obs_output_video(recording));
-		// den/num, perfect for use with metadata timebase and inputting frames
-		num = info->fps_num;
-		den = info->fps_den;
-		*/
 		break;
 	}
 
-    case OBS_FRONTEND_EVENT_RECORDING_PAUSED: {
-        auto finish = chrono::steady_clock::now();
-        elapsed += chrono::duration_cast<chrono::milliseconds>(finish - start).count();
-        break;
-    }
+	case OBS_FRONTEND_EVENT_RECORDING_PAUSED: {
+		auto finish = chrono::steady_clock::now();
+		elapsed += chrono::duration_cast<chrono::milliseconds>(finish - start).count();
+		break;
+	}
 
-    case OBS_FRONTEND_EVENT_RECORDING_UNPAUSED: {
-        start = chrono::steady_clock::now();
-        break;
-    }
+	case OBS_FRONTEND_EVENT_RECORDING_UNPAUSED: {
+		start = chrono::steady_clock::now();
+		break;
+	}
 
 	case OBS_FRONTEND_EVENT_RECORDING_STOPPED: {
 		if (chapters.size() == 0)
 			return;
 
-        // Make sure FFMPEG is actually on the system
+		// Make sure FFMPEG is actually on the system
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-        if (WinExec("ffmpeg", SW_HIDE) < 32) {
+		if (WinExec("ffmpeg", SW_HIDE) < 32) {
 #else
-        if (System("ffmpeg") == NULL) {
+		if (System("ffmpeg") == NULL) {
 #endif
-            string err = "ChapterMarker Plugin didn't find FFMPEG!";
-            QMessageBox::critical(0, QString("CRASH!"), QString::fromStdString(err), QMessageBox::Ok);
-            throw runtime_error(err);
-        }
+			string err = "ChapterMarker Plugin didn't find FFMPEG!";
+			QMessageBox::critical(0, QString("CRASH!"), QString::fromStdString(err), QMessageBox::Ok);
+			throw runtime_error(err);
+		}
 
 		// copy the encoding but give it metadata of chapters
 		regex re("(.*)\\.mkv$");
@@ -217,7 +210,7 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 		regex_search(filename, m, re);
 		if (m.size() < 2) {
 			string err = "ChapterMarker Plugin didn't find the filename of the recording!";
-            QMessageBox::critical(0, QString("CRASH!"), QString::fromStdString(err), QMessageBox::Ok);
+			QMessageBox::critical(0, QString("CRASH!"), QString::fromStdString(err), QMessageBox::Ok);
 			throw runtime_error(err);
 		}
 		string newFilename = m[1].str() + " - ChapterMarker.mkv";
@@ -243,7 +236,7 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 		// Easiest fallback
 		system(ss.str().c_str());
 #endif
-        cleanupFiles(filename, newFilename, metadata);
+		cleanupFiles(filename, newFilename, metadata);
 		break;
 	}
 
@@ -255,29 +248,29 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 
 
 bool obs_module_load(void) {
-    blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
-    
-
-    /*
-    // For easy debugging
-    if (AllocConsole())
-        blog(LOG_INFO, "alloc console succeeded");
-    else {
-        blog(LOG_INFO, "alloc console FAILED");
-        return false;
-    }
-    FILE* fDummy = NULL;
-    freopen_s(&fDummy, "CONOUT$", "w", stdout);
-    printf("Hello console\n");
-    */
+	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 
 
-    loadSettings();
-    obs_frontend_add_event_callback(EvenHandler, NULL);
-    return true;
+	/*
+	// For easy debugging
+	if (AllocConsole())
+		blog(LOG_INFO, "alloc console succeeded");
+	else {
+		blog(LOG_INFO, "alloc console FAILED");
+		return false;
+	}
+	FILE* fDummy = NULL;
+	freopen_s(&fDummy, "CONOUT$", "w", stdout);
+	printf("Hello console\n");
+	*/
+
+
+	loadSettings();
+	obs_frontend_add_event_callback(EvenHandler, NULL);
+	return true;
 }
 
 
 void obs_module_unload() {
-    blog(LOG_INFO, "plugin unloaded");
+	blog(LOG_INFO, "plugin unloaded");
 }
