@@ -22,26 +22,6 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "plugin-macros.generated.h"
 #include "plugin-main.hpp"
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-#include <Windows.h>
-#endif
-#include <stdio.h>
-#include <inttypes.h>
-#include <vector>
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <regex>
-#include <algorithm>
-#include <iterator>
-#include <cstdio>
-#include <filesystem>
-#include <chrono>
-#include <thread>
-
-
-using namespace std;
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
@@ -81,7 +61,7 @@ const char* GetCurrentRecordingFilename()
 }
 
 
-int getOutputRunningTime() {
+uint64_t getOutputRunningTime() {
     auto finish = chrono::steady_clock::now();
     uint64_t dur = chrono::duration_cast<chrono::milliseconds>(finish - start).count() + elapsed;
     return dur;
@@ -168,6 +148,22 @@ bool checkMKV() {
 }
 
 
+
+// A crappy way to synchronously delete and rename files, especially needed for waiting for FFMPEG to finish
+void cleanupFiles(const string& filename, const string& newFilename, const string& metadata) {
+    int delay = 100;
+    do {
+        this_thread::sleep_for(chrono::milliseconds(delay));
+    } while (!filesystem::exists(newFilename));
+    remove(metadata.c_str());
+    remove(filename.c_str());
+    do {
+        this_thread::sleep_for(chrono::milliseconds(delay));
+    } while (filesystem::exists(filename));
+    rename(newFilename.c_str(), filename.c_str());
+}
+
+
 // Callback for when a recording stops
 // Remaking the outputted video file with the chapters metadata
 auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
@@ -225,32 +221,18 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 			writeChapter(file, time, i++);
 		file.close();
 
-		stringstream ss(""), ss2(""), ss3("");
+		stringstream ss("");
 		ss << "ffmpeg -i \"" + filename + "\" -i \"" + metadata + "\" -map_metadata 1 -c copy \"" + newFilename + "\" -y";
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-		ss2 << "powershell \"rm \"'" + metadata + "'\"";
-		ss3 << "powershell \"rm \"'" + filename + "'\"";
 		WinExec(ss.str().c_str(), SW_HIDE);
-		do {
-			this_thread::sleep_for(chrono::milliseconds(100));
-		} while (!filesystem::exists(newFilename));
-		WinExec(ss2.str().c_str(), SW_HIDE);
-		WinExec(ss3.str().c_str(), SW_HIDE);
-		//#elif __linux__ ||  __unix__ || defined(_POSIX_VERSION)
-		//#elif __APPLE__
+//#elif __linux__ ||  __unix__ || defined(_POSIX_VERSION)
+//#elif __APPLE__
 #else
 		// Easiest fallback
-		ss2 << "rm \"'" + metadata + "'";
-		ss3 << "rm \"'" + filename + "'";
 		system(ss.str().c_str());
-		do {
-			this_thread::sleep_for(chrono::milliseconds(100));
-		} while (!filesystem::exists(newFilename));
-		system(ss2.str().c_str());
-		system(ss3.str().c_str());
 #endif
-
+        cleanupFiles(filename, newFilename, metadata);
 		break;
 	}
 
