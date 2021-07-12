@@ -19,6 +19,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include <obs.h>
+
+extern "C" {
+#include "remux.h"
+}
+
 #include "plugin-macros.generated.h"
 #include "plugin-main.hpp"
 
@@ -36,6 +41,30 @@ uint64_t elapsed;
 
 obs_hotkey_id chapterMarkerHotkey = OBS_INVALID_HOTKEY_ID;
 bool hotkeysRegistered = false;
+
+
+void crash(string s) {
+	errorPopup(s.c_str());
+	string str = "Chapter Marker Plugin : " + s;
+	throw runtime_error(str);
+}
+
+
+void errorPopup(const char* s) {
+	string str = "Chapter Marker Plugin: " + string(s);
+	QMessageBox::critical(0, QString("ERROR!"), QString::fromStdString(str), QMessageBox::Ok);
+}
+
+
+void convertChapters() {
+	int i = 1;
+	for (auto t : chapters) {
+		AVRational r;
+		r.num = 1;
+		r.den = 1000; // milliseconds
+		avpriv_new_chapter(i, r, t, t, to_string(i++).c_str());
+	}
+}
 
 
 // Get filename
@@ -77,15 +106,6 @@ auto HotkeyFunc = [](void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pr
 		chapters.push_back(getOutputRunningTime());
 	}
 };
-
-
-void writeChapter(ofstream& f, const uint64_t& t, int i) {
-	f << "[CHAPTER]" << endl;
-	f << "TIMEBASE=1/1000" << endl;
-	f << "START=" << to_string(t) << endl;
-	f << "END=" << to_string(t) << endl;
-	f << "title=" << to_string(i) << endl << endl;
-}
 
 
 void createSettingsDir() {
@@ -149,12 +169,11 @@ bool checkMKV() {
 
 
 // A crappy way to synchronously delete and rename files, especially needed for waiting for FFMPEG to finish
-void cleanupFiles(const string& filename, const string& newFilename, const string& metadata) {
+void cleanupFiles(const string& filename, const string& newFilename) {
 	int delay = 100;
 	do {
 		this_thread::sleep_for(chrono::milliseconds(delay));
 	} while (!filesystem::exists(newFilename));
-	remove(metadata.c_str());
 	remove(filename.c_str());
 	do {
 		this_thread::sleep_for(chrono::milliseconds(delay));
@@ -191,52 +210,22 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 
 	case OBS_FRONTEND_EVENT_RECORDING_STOPPED: {
 		if (chapters.size() == 0)
-			return;
-
-		// Make sure FFMPEG is actually on the system
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-		if (WinExec("ffmpeg", SW_HIDE) < 32) {
-#else
-		if (System("ffmpeg") == NULL) {
-#endif
-			string err = "ChapterMarker Plugin didn't find FFMPEG!";
-			QMessageBox::critical(0, QString("CRASH!"), QString::fromStdString(err), QMessageBox::Ok);
-			throw runtime_error(err);
-		}
+			break;
 
 		// copy the encoding but give it metadata of chapters
 		regex re("(.*)\\.mkv$");
 		smatch m;
 		regex_search(filename, m, re);
-		if (m.size() < 2) {
-			string err = "ChapterMarker Plugin didn't find the filename of the recording!";
-			QMessageBox::critical(0, QString("CRASH!"), QString::fromStdString(err), QMessageBox::Ok);
-			throw runtime_error(err);
-		}
+		if (m.size() < 2)
+			crash("Didn't find the filename of the recording!");
+
 		string newFilename = m[1].str() + " - ChapterMarker.mkv";
 
-		// create chapters for metadata file
-		string metadata = filename + ".metadata";
-		ofstream file;
-		file.open(metadata);
-		file << ";FFMETADATA1\n\n";
-		int i = 1;
-		for (const uint64_t& time : chapters)
-			writeChapter(file, time, i++);
-		file.close();
+		startRemux(filename.c_str(), newFilename.c_str());
+		convertChapters();
+		finishRemux();
 
-		stringstream ss("");
-		ss << "ffmpeg -i \"" + filename + "\" -i \"" + metadata + "\" -map_metadata 1 -c copy \"" + newFilename + "\" -y";
-
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-		WinExec(ss.str().c_str(), SW_HIDE);
-//#elif __linux__ ||  __unix__ || defined(_POSIX_VERSION)
-//#elif __APPLE__
-#else
-		// Easiest fallback
-		system(ss.str().c_str());
-#endif
-		cleanupFiles(filename, newFilename, metadata);
+		cleanupFiles(filename, newFilename);
 		break;
 	}
 
