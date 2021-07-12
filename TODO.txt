@@ -1,0 +1,2 @@
+- Make plugin operate off a created thread
+- Utilize FFMPEG library instead of asking end-users to use 3rd party FFMPEG CLI
