@@ -22,6 +22,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/dict.h>
+#include <libavutil/timestamp.h>
+#include "remux.h"
 }
 
 #include "plugin-macros.generated.h"
@@ -69,6 +71,27 @@ uint64_t getOutputRunningTime() {
 	auto finish = chrono::steady_clock::now();
 	uint64_t dur = chrono::duration_cast<chrono::milliseconds>(finish - start).count() + elapsed;
 	return dur;
+}
+
+
+int testFF() {
+	AVFormatContext* fmt_ctx = NULL;
+	AVDictionaryEntry* tag = NULL;
+	int ret;
+
+	if ((ret = avformat_open_input(&fmt_ctx, filename.c_str(), NULL, NULL)))
+		return ret;
+
+	if ((ret = avformat_find_stream_info(fmt_ctx, NULL)) < 0) {
+		printf("Cannot find stream information\n");
+		return ret;
+	}
+
+	while ((tag = av_dict_get(fmt_ctx->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
+		printf("%s=%s\n", tag->key, tag->value);
+
+	avformat_close_input(&fmt_ctx);
+	return 0;
 }
 
 
@@ -198,17 +221,12 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 		if (chapters.size() == 0)
 			return;
 
-		// Make sure FFMPEG is actually on the system
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-		if (WinExec("ffmpeg", SW_HIDE) < 32) {
-#else
-		if (System("ffmpeg") == NULL) {
-#endif
-			string err = "ChapterMarker Plugin didn't find FFMPEG!";
-			QMessageBox::critical(0, QString("CRASH!"), QString::fromStdString(err), QMessageBox::Ok);
-			throw runtime_error(err);
-		}
+		testFF();
+		string newFilename = filename + " - ChapterMarker.mkv";
+		remux(filename.c_str(), newFilename.c_str());
+		break;
 
+		/*
 		// copy the encoding but give it metadata of chapters
 		regex re("(.*)\\.mkv$");
 		smatch m;
@@ -243,6 +261,7 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 #endif
 		cleanupFiles(filename, newFilename, metadata);
 		break;
+		*/
 	}
 
 	case OBS_FRONTEND_EVENT_EXIT:
@@ -256,7 +275,7 @@ bool obs_module_load(void) {
 	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 
 
-	/*
+	
 	// For easy debugging
 	if (AllocConsole())
 		blog(LOG_INFO, "alloc console succeeded");
@@ -267,7 +286,7 @@ bool obs_module_load(void) {
 	FILE* fDummy = NULL;
 	freopen_s(&fDummy, "CONOUT$", "w", stdout);
 	printf("Hello console\n");
-	*/
+	
 
 
 	loadSettings();

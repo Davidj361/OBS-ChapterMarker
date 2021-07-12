@@ -16,10 +16,13 @@ set(LibObs_DIR "C:/Users/DJ/source/repos/obs-studio/build/libobs")
 set(Qt5_DIR "C:/Users/DJ/source/repos/Qt/5.15.2/msvc2019_64/lib/cmake/Qt5")
 set(OBS_FRONTEND_LIB "C:/Users/DJ/source/repos/obs-studio/build/UI/obs-frontend-api/Release/obs-frontend-api.lib")
 
-set(AVUTIL_LIBRARY "C:\Users\DJ\source\repos\obs-deps\win64\bin\avutil.lib")
-set(AVFORMAT_LIBRARY "C:\Users\DJ\source\repos\obs-deps\win64\bin\avformat.lib")
-set(AVUTIL_INCLUDE_DIR "C:\Users\DJ\source\repos\obs-deps\win64\include")
-set(AVFORMAT_INCLUDE_DIR "C:\Users\DJ\source\repos\obs-deps\win64\include")
+
+set(AVFORMAT_LIBRARY "C:/Users/DJ/source/repos/obs-deps/win64/bin/avformat.lib")
+set(AVFORMAT_INCLUDE_DIR "C:/Users/DJ/source/repos/obs-deps/win64/include")
+set(AVUTIL_LIBRARY "C:/Users/DJ/source/repos/obs-deps/win64/bin/avutil.lib")
+set(AVUTIL_INCLUDE_DIR "C:/Users/DJ/source/repos/obs-deps/win64/include")
+set(AVCODEC_LIBRARY "C:/Users/DJ/source/repos/obs-deps/win64/bin/avcodec.lib")
+set(AVCODEC_INCLUDE_DIR "C:/Users/DJ/source/repos/obs-deps/win64/include")
 ##
 
 # TAKE NOTE: No need to edit things past this point
@@ -44,9 +47,10 @@ find_package(Qt5 REQUIRED COMPONENTS Core Widgets)
 # FFMPEG libraries
 find_path(AVFORMAT_INCLUDE_DIR libavformat/avformat.h)
 find_library(AVFORMAT_LIBRARY avformat)
-
 find_path(AVUTIL_INCLUDE_DIR libavutil/avutil.h)
 find_library(AVUTIL_LIBRARY avutil)
+find_path(AVCODEC_INCLUDE_DIR libavcodec/avcodec.h)
+find_library(AVCODEC_LIBRARY avcodec)
 ###
 
 configure_file(
@@ -72,11 +76,14 @@ configure_file(
 )
 
 set(PLUGIN_SOURCES
-	src/plugin-main.cpp)
+	src/plugin-main.cpp
+    src/remux.c
+)
 
 set(PLUGIN_HEADERS
 	src/plugin-macros.generated.h
 	src/plugin-main.hpp
+	src/remux.h
 )
 
 # --- Platform-independent build settings ---
@@ -88,6 +95,7 @@ include_directories(
 	${Qt5Widgets_INCLUDES}
 	${AVFORMAT_INCLUDE_DIR}
 	${AVUTIL_INCLUDE_DIR}
+	${AVCODEC_INCLUDE_DIR}
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
@@ -96,6 +104,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
 	Qt5::Widgets
     ${AVUTIL_LIBRARY}
     ${AVFORMAT_LIBRARY}
+	${AVCODEC_LIBRARY}
 )
 
 # --- End of section ---
