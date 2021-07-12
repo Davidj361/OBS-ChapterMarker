@@ -42,6 +42,8 @@ uint64_t elapsed;
 obs_hotkey_id chapterMarkerHotkey = OBS_INVALID_HOTKEY_ID;
 bool hotkeysRegistered = false;
 
+thread _t;
+
 
 void crash(string s) {
 	errorPopup(s.c_str());
@@ -169,16 +171,27 @@ bool checkMKV() {
 
 
 // A crappy way to synchronously delete and rename files, especially needed for waiting for FFMPEG to finish
-void cleanupFiles(const string& filename, const string& newFilename) {
-	int delay = 100;
-	do {
-		this_thread::sleep_for(chrono::milliseconds(delay));
-	} while (!filesystem::exists(newFilename));
-	remove(filename.c_str());
-	do {
-		this_thread::sleep_for(chrono::milliseconds(delay));
-	} while (filesystem::exists(filename));
-	rename(newFilename.c_str(), filename.c_str());
+void cleanupFiles(const string& f, const string& f2) {
+	remove(f.c_str());
+	rename(f2.c_str(), f.c_str());
+}
+
+
+void startThread(const string f) {
+	// copy the encoding but give it metadata of chapters
+	regex re("(.*)\\.mkv$");
+	smatch m;
+	regex_search(f, m, re);
+	if (m.size() < 2)
+		crash("Didn't find the filename of the recording!");
+
+	string newFilename = m[1].str() + " - ChapterMarker.mkv";
+
+	startRemux(f.c_str(), newFilename.c_str());
+	convertChapters();
+	finishRemux();
+
+	cleanupFiles(f, newFilename);
 }
 
 
@@ -211,21 +224,9 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 	case OBS_FRONTEND_EVENT_RECORDING_STOPPED: {
 		if (chapters.size() == 0)
 			break;
-
-		// copy the encoding but give it metadata of chapters
-		regex re("(.*)\\.mkv$");
-		smatch m;
-		regex_search(filename, m, re);
-		if (m.size() < 2)
-			crash("Didn't find the filename of the recording!");
-
-		string newFilename = m[1].str() + " - ChapterMarker.mkv";
-
-		startRemux(filename.c_str(), newFilename.c_str());
-		convertChapters();
-		finishRemux();
-
-		cleanupFiles(filename, newFilename);
+		if (_t.joinable()) // wait for previous thread to finish
+			_t.join();
+		_t = thread(startThread, filename);
 		break;
 	}
 
