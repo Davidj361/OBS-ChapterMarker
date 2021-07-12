@@ -20,9 +20,6 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-frontend-api.h>
 #include <obs.h>
 extern "C" {
-#include <libavformat/avformat.h>
-#include <libavutil/dict.h>
-#include <libavutil/timestamp.h>
 #include "remux.h"
 }
 
@@ -43,6 +40,22 @@ uint64_t elapsed;
 
 obs_hotkey_id chapterMarkerHotkey = OBS_INVALID_HOTKEY_ID;
 bool hotkeysRegistered = false;
+
+
+void errorPopup(const char* s) {
+
+}
+
+
+void convertChapters() {
+	int i = 1;
+	for (auto t : chapters) {
+		AVRational r;
+		r.num = 1;
+		r.den = 1000; // milliseconds
+		avpriv_new_chapter(i, r, t, t, to_string(i++).c_str());
+	}
+}
 
 
 // Get filename
@@ -71,27 +84,6 @@ uint64_t getOutputRunningTime() {
 	auto finish = chrono::steady_clock::now();
 	uint64_t dur = chrono::duration_cast<chrono::milliseconds>(finish - start).count() + elapsed;
 	return dur;
-}
-
-
-int testFF() {
-	AVFormatContext* fmt_ctx = NULL;
-	AVDictionaryEntry* tag = NULL;
-	int ret;
-
-	if ((ret = avformat_open_input(&fmt_ctx, filename.c_str(), NULL, NULL)))
-		return ret;
-
-	if ((ret = avformat_find_stream_info(fmt_ctx, NULL)) < 0) {
-		printf("Cannot find stream information\n");
-		return ret;
-	}
-
-	while ((tag = av_dict_get(fmt_ctx->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
-		printf("%s=%s\n", tag->key, tag->value);
-
-	avformat_close_input(&fmt_ctx);
-	return 0;
 }
 
 
@@ -177,12 +169,11 @@ bool checkMKV() {
 
 
 // A crappy way to synchronously delete and rename files, especially needed for waiting for FFMPEG to finish
-void cleanupFiles(const string& filename, const string& newFilename, const string& metadata) {
+void cleanupFiles(const string& filename, const string& newFilename) {
 	int delay = 100;
 	do {
 		this_thread::sleep_for(chrono::milliseconds(delay));
 	} while (!filesystem::exists(newFilename));
-	remove(metadata.c_str());
 	remove(filename.c_str());
 	do {
 		this_thread::sleep_for(chrono::milliseconds(delay));
@@ -221,12 +212,6 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 		if (chapters.size() == 0)
 			return;
 
-		testFF();
-		string newFilename = filename + " - ChapterMarker.mkv";
-		remux(filename.c_str(), newFilename.c_str());
-		break;
-
-		/*
 		// copy the encoding but give it metadata of chapters
 		regex re("(.*)\\.mkv$");
 		smatch m;
@@ -238,30 +223,12 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 		}
 		string newFilename = m[1].str() + " - ChapterMarker.mkv";
 
-		// create chapters for metadata file
-		string metadata = filename + ".metadata";
-		ofstream file;
-		file.open(metadata);
-		file << ";FFMETADATA1\n\n";
-		int i = 1;
-		for (const uint64_t& time : chapters)
-			writeChapter(file, time, i++);
-		file.close();
+		startRemux(filename.c_str(), newFilename.c_str());
+		convertChapters();
+		finishRemux();
 
-		stringstream ss("");
-		ss << "ffmpeg -i \"" + filename + "\" -i \"" + metadata + "\" -map_metadata 1 -c copy \"" + newFilename + "\" -y";
-
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-		WinExec(ss.str().c_str(), SW_HIDE);
-//#elif __linux__ ||  __unix__ || defined(_POSIX_VERSION)
-//#elif __APPLE__
-#else
-		// Easiest fallback
-		system(ss.str().c_str());
-#endif
-		cleanupFiles(filename, newFilename, metadata);
+		cleanupFiles(filename, newFilename);
 		break;
-		*/
 	}
 
 	case OBS_FRONTEND_EVENT_EXIT:
