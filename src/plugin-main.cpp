@@ -19,6 +19,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include <obs.h>
+
 extern "C" {
 #include "remux.h"
 }
@@ -42,8 +43,16 @@ obs_hotkey_id chapterMarkerHotkey = OBS_INVALID_HOTKEY_ID;
 bool hotkeysRegistered = false;
 
 
-void errorPopup(const char* s) {
+void crash(string s) {
+	errorPopup(s.c_str());
+	string str = "Chapter Marker Plugin : " + s;
+	throw runtime_error(str);
+}
 
+
+void errorPopup(const char* s) {
+	string str = "Chapter Marker Plugin: " + string(s);
+	QMessageBox::critical(0, QString("ERROR!"), QString::fromStdString(str), QMessageBox::Ok);
 }
 
 
@@ -97,15 +106,6 @@ auto HotkeyFunc = [](void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pr
 		chapters.push_back(getOutputRunningTime());
 	}
 };
-
-
-void writeChapter(ofstream& f, const uint64_t& t, int i) {
-	f << "[CHAPTER]" << endl;
-	f << "TIMEBASE=1/1000" << endl;
-	f << "START=" << to_string(t) << endl;
-	f << "END=" << to_string(t) << endl;
-	f << "title=" << to_string(i) << endl << endl;
-}
 
 
 void createSettingsDir() {
@@ -210,17 +210,15 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 
 	case OBS_FRONTEND_EVENT_RECORDING_STOPPED: {
 		if (chapters.size() == 0)
-			return;
+			break;
 
 		// copy the encoding but give it metadata of chapters
 		regex re("(.*)\\.mkv$");
 		smatch m;
 		regex_search(filename, m, re);
-		if (m.size() < 2) {
-			string err = "ChapterMarker Plugin didn't find the filename of the recording!";
-			QMessageBox::critical(0, QString("CRASH!"), QString::fromStdString(err), QMessageBox::Ok);
-			throw runtime_error(err);
-		}
+		if (m.size() < 2)
+			crash("Didn't find the filename of the recording!");
+
 		string newFilename = m[1].str() + " - ChapterMarker.mkv";
 
 		startRemux(filename.c_str(), newFilename.c_str());
@@ -242,7 +240,7 @@ bool obs_module_load(void) {
 	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 
 
-	
+	/*
 	// For easy debugging
 	if (AllocConsole())
 		blog(LOG_INFO, "alloc console succeeded");
@@ -253,7 +251,7 @@ bool obs_module_load(void) {
 	FILE* fDummy = NULL;
 	freopen_s(&fDummy, "CONOUT$", "w", stdout);
 	printf("Hello console\n");
-	
+	*/
 
 
 	loadSettings();

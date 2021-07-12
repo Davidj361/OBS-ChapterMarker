@@ -16,7 +16,6 @@ static int stream_mapping_size = 0;
 AVChapter* avpriv_new_chapter(int64_t id, AVRational time_base,
     int64_t start, int64_t end, const char* title)
 {
-    printf("Writing chapter\n");
     AVChapter* chapter = NULL;
     int i, ret;
 
@@ -25,13 +24,11 @@ AVChapter* avpriv_new_chapter(int64_t id, AVRational time_base,
         return NULL;
     }
 
-    //ofmt_ctx->nb_chapters++;
-
     if (!chapter) {
         chapter = av_mallocz(sizeof(AVChapter));
         if (!chapter)
             return NULL;
-        ret = av_dynarray_add_nofree(&ofmt_ctx->chapters, &ofmt_ctx->nb_chapters, chapter);
+        ret = av_dynarray_add_nofree(&ofmt_ctx->chapters, &ofmt_ctx->nb_chapters, chapter); // automatically adjusts nb_chapters too
         if (ret < 0) {
             av_free(chapter);
             return NULL;
@@ -73,12 +70,12 @@ int startRemux(const char* filename, const char* newFilename) {
     out_filename = newFilename;
 
     if ((ret = avformat_open_input(&ifmt_ctx, in_filename, 0, 0)) < 0) {
-        printf("Could not open input file '%s'", in_filename);
+        errorPopup("Could not open input file");
         return end(ret);
     }
 
     if ((ret = avformat_find_stream_info(ifmt_ctx, 0)) < 0) {
-        printf("Failed to retrieve input stream information");
+        errorPopup("Failed to retrieve input stream information");
         return end(ret);
     }
 
@@ -86,7 +83,7 @@ int startRemux(const char* filename, const char* newFilename) {
 
     avformat_alloc_output_context2(&ofmt_ctx, NULL, NULL, out_filename);
     if (!ofmt_ctx) {
-        printf("Could not create output context\n");
+        errorPopup("Could not create output context");
         ret = AVERROR_UNKNOWN;
         return end(ret);
 
@@ -117,14 +114,14 @@ int startRemux(const char* filename, const char* newFilename) {
 
         out_stream = avformat_new_stream(ofmt_ctx, NULL);
         if (!out_stream) {
-            printf("Failed allocating output stream\n");
+            errorPopup("Failed allocating output stream");
             ret = AVERROR_UNKNOWN;
             return end(ret);
         }
 
         ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
         if (ret < 0) {
-            printf("Failed to copy codec parameters\n");
+            errorPopup("Failed to copy codec parameters");
             return end(ret);
         }
         out_stream->codecpar->codec_tag = 0;
@@ -134,18 +131,17 @@ int startRemux(const char* filename, const char* newFilename) {
     if (!(ofmt->flags & AVFMT_NOFILE)) {
         ret = avio_open(&ofmt_ctx->pb, out_filename, AVIO_FLAG_WRITE);
         if (ret < 0) {
-            printf("Could not open output file '%s'", out_filename);
+            errorPopup("Could not open output file");
             return end(ret);
         }
     }
 }
 
 int finishRemux() {
-    printf("test\n");
     // Write metadata before avformat_write_header()
     ret = avformat_write_header(ofmt_ctx, NULL);
     if (ret < 0) {
-        printf("Error occurred when opening output file\n");
+        errorPopup("Error occurred when opening output file");
         return end(ret);
     }
 
@@ -176,7 +172,7 @@ int finishRemux() {
 
         ret = av_interleaved_write_frame(ofmt_ctx, &pkt);
         if (ret < 0) {
-            printf("Error muxing packet\n");
+            errorPopup("Error muxing packet");
             break;
         }
         av_packet_unref(&pkt);
@@ -194,12 +190,12 @@ int end(int ret) {
     /* close output */
     if (ofmt_ctx && !(ofmt->flags & AVFMT_NOFILE))
         avio_closep(&ofmt_ctx->pb);
-    avformat_free_context(ofmt_ctx);
+    avformat_free_context(ofmt_ctx); // should also free chapters
 
     av_freep(&stream_mapping);
 
     if (ret < 0 && ret != AVERROR_EOF) {
-        printf("Error occurred: %s\n", av_err2str(ret));
+        errorPopup("Error occurred");
         return 1;
     }
 

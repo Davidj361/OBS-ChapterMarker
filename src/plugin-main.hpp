@@ -1,11 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-#define EXTERNC extern "C"
-#else
-#define EXTERNC
-#endif
-
 #include <QMessageBox>
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
@@ -29,6 +23,7 @@
 
 using namespace std;
 
+void crash(string s);
 void convertChapters();
 void createSettingsDir();
 void registerHotkeys();
@@ -38,5 +33,3 @@ void saveHotkeys(obs_data_t* obj);
 void loadHotkeys(obs_data_t* obj);
 bool checkMKV();
 void cleanupFiles(const string& filename, const string&);
-
-EXTERNC void errorPopup(const char* s);
