@@ -172,14 +172,7 @@ bool checkMKV() {
 
 // A crappy way to synchronously delete and rename files, especially needed for waiting for FFMPEG to finish
 void cleanupFiles(const string& f, const string& f2) {
-	int delay = 100;
-	do {
-		this_thread::sleep_for(chrono::milliseconds(delay));
-	} while (!filesystem::exists(f2));
 	remove(f.c_str());
-	do {
-		this_thread::sleep_for(chrono::milliseconds(delay));
-	} while (filesystem::exists(f));
 	rename(f2.c_str(), f.c_str());
 }
 

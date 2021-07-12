@@ -2,11 +2,6 @@
 
 #include <QMessageBox>
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-#include <Windows.h>
-#endif
-#include <stdio.h>
-#include <inttypes.h>
 #include <vector>
 #include <string>
 #include <iostream>
@@ -15,7 +10,6 @@
 #include <regex>
 #include <algorithm>
 #include <iterator>
-#include <cstdio>
 #include <filesystem>
 #include <chrono>
 #include <thread>
