@@ -169,9 +169,11 @@ bool checkMKV() {
 }
 
 
-
-// A crappy way to synchronously delete and rename files, especially needed for waiting for FFMPEG to finish
+// Delete redundant video files so 2x space isn't taken
 void cleanupFiles(const string& f, const string& f2) {
+	// Don't delete anything if the chapter marker video wasn't created
+	if (!filesystem::exists(f2))
+		return;
 	remove(f.c_str());
 	rename(f2.c_str(), f.c_str());
 }
