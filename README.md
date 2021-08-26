@@ -15,3 +15,13 @@ set(OBS_FRONTEND_LIB "C:/Users/DJ/source/repos/obs-studio/build/UI/obs-frontend-
 ```
 
 **Note**: The project uses C++17 and the project was forked off [https://github.com/obsproject/obs-plugintemplate](https://github.com/obsproject/obs-plugintemplate).
+
+## Basic Usage
+
+- After install this plugin, a new option "Create chapter marker" will be available (File > Preferences > Hotkeys). Map it to something meaningful to you:
+  - ![OBS option](imgs/obs_option.jpg)
+- Do some recording, invoking this hotkey.
+- Open the mkv file created, and search the chapters marks, e.g.:
+  - Each chapter will have a number as identification (starting with 1)
+  - ![list of chapters in VLC-player](imgs/vlc_chapters_example.gif)
+- Markers are displayed differently according to the video player, so, an alternative is to list chapters using `ffprobe -show_chapters <your_video_name.mkv>`.
