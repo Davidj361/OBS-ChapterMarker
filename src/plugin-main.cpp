@@ -44,6 +44,8 @@ bool hotkeysRegistered = false;
 
 thread _t;
 
+QProgressDialog* progress = nullptr;
+
 
 void crash(string s) {
 	errorPopup(s.c_str());
@@ -55,6 +57,26 @@ void crash(string s) {
 void errorPopup(const char* s) {
 	string str = "Chapter Marker Plugin: " + string(s);
 	QMessageBox::critical(0, QString("ERROR!"), QString::fromStdString(str), QMessageBox::Ok);
+}
+
+
+void createProgressBar() {
+	progress = new QProgressDialog("Duplicating video file with chapter metadata", nullptr, 0, 100);
+	progress->setWindowTitle("Chapter Marker");
+	progress->setWindowFlags(progress->windowFlags() & ~Qt::WindowCloseButtonHint & ~Qt::WindowContextHelpButtonHint);
+	progress->setAttribute(Qt::WA_DeleteOnClose);
+	progress->show(); progress->raise();
+}
+
+
+// Input: Percentage of progress of remuxing
+void updateProgress(int64_t i) {
+	if (progress == nullptr) {
+		errorPopup("QProgressDialog is null");
+		return;
+	}
+	if (i > progress->value())
+		progress->setValue(i);
 }
 
 
@@ -179,7 +201,7 @@ void cleanupFiles(const string& f, const string& f2) {
 }
 
 
-void startThread(const string f) {
+void startThread(string f) {
 	// copy the encoding but give it metadata of chapters
 	regex re("(.*)\\.mkv$");
 	smatch m;
@@ -189,11 +211,21 @@ void startThread(const string f) {
 
 	string newFilename = m[1].str() + " - ChapterMarker.mkv";
 
+	// TODO Remove after testing
+	// For testing long videos
+	f = "F:/Videos/test.mkv";
+	newFilename = "F:/Videos/test2.mkv";
+
+	printf("%s \n", f.c_str());
+	printf("%s \n", newFilename.c_str());
+
 	startRemux(f.c_str(), newFilename.c_str());
 	convertChapters();
 	finishRemux();
+	progress->setValue(100);
 
-	cleanupFiles(f, newFilename);
+	// TODO uncomment after testing
+	// cleanupFiles(f, newFilename);
 }
 
 
@@ -226,8 +258,11 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 	case OBS_FRONTEND_EVENT_RECORDING_STOPPED: {
 		if (chapters.size() == 0)
 			break;
-		if (_t.joinable()) // wait for previous thread to finish
+		if (_t.joinable()) { // wait for previous thread to finish 
+			errorPopup("Still duplicating last video, waiting to finish...");
 			_t.join();
+		}
+		createProgressBar();
 		_t = thread(startThread, filename);
 		break;
 	}
@@ -243,8 +278,9 @@ bool obs_module_load(void) {
 	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 
 
-	/*
+	
 	// For easy debugging
+#ifdef DEBUG
 	if (AllocConsole())
 		blog(LOG_INFO, "alloc console succeeded");
 	else {
@@ -254,7 +290,8 @@ bool obs_module_load(void) {
 	FILE* fDummy = NULL;
 	freopen_s(&fDummy, "CONOUT$", "w", stdout);
 	printf("Hello console\n");
-	*/
+#endif
+	
 
 
 	loadSettings();

@@ -169,6 +169,13 @@ int finishRemux() {
         pkt.duration = av_rescale_q(pkt.duration, in_stream->time_base, out_stream->time_base);
         pkt.pos = -1;
         // log_packet(ofmt_ctx, &pkt, "out"); // debugging
+        double fileDuration = ifmt_ctx->duration * av_q2d(AV_TIME_BASE_Q);
+		double pktPts = pkt.pts * av_q2d(ifmt_ctx->streams[pkt.stream_index]->time_base);
+        int64_t prog = (pktPts / fileDuration) * 100;
+        //printf("%f\n", fileDuration);
+        //printf("%f\n", pktPts);
+        //printf("division: %" PRId64 "\n", prog);
+        updateProgress(prog);
 
         ret = av_interleaved_write_frame(ofmt_ctx, &pkt);
         if (ret < 0) {

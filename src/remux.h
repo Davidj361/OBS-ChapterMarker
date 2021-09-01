@@ -17,3 +17,4 @@ int finishRemux();
 int end(int ret);
 
 EXTERNC void errorPopup(const char* s);
+EXTERNC void updateProgress(int64_t i);
