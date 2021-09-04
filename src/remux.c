@@ -145,7 +145,8 @@ int finishRemux() {
         return end(ret);
     }
 
-    while (1) {
+    //while (1) {
+    while (!cancelledProgress()) {
         AVStream* in_stream, * out_stream;
 
         ret = av_read_frame(ifmt_ctx, &pkt);
@@ -172,9 +173,6 @@ int finishRemux() {
         double fileDuration = ifmt_ctx->duration * av_q2d(AV_TIME_BASE_Q);
 		double pktPts = pkt.pts * av_q2d(ifmt_ctx->streams[pkt.stream_index]->time_base);
         int64_t prog = (pktPts / fileDuration) * 100;
-        //printf("%f\n", fileDuration);
-        //printf("%f\n", pktPts);
-        //printf("division: %" PRId64 "\n", prog);
         updateProgress(prog);
 
         ret = av_interleaved_write_frame(ofmt_ctx, &pkt);

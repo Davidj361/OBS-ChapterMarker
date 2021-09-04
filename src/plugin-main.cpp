@@ -43,6 +43,7 @@ obs_hotkey_id chapterMarkerHotkey = OBS_INVALID_HOTKEY_ID;
 bool hotkeysRegistered = false;
 
 thread _t;
+bool running = false; // a way to check if the thread is done
 
 QProgressDialog* progress = nullptr;
 
@@ -60,11 +61,21 @@ void errorPopup(const char* s) {
 }
 
 
+void resetProgress() {
+	progress = nullptr;
+}
+
+
 void createProgressBar() {
-	progress = new QProgressDialog("Duplicating video file with chapter metadata", nullptr, 0, 100);
+	if (progress != nullptr)
+		errorPopup("createProgressBar: progress != nullptr");
+	string message = filesystem::path(filename).filename().string() + "\nDuplicating video file with chapter metadata";
+	progress = new QProgressDialog(message.c_str(), "Cancel", 0, 100);
 	progress->setWindowTitle("Chapter Marker");
 	progress->setWindowFlags(progress->windowFlags() & ~Qt::WindowCloseButtonHint & ~Qt::WindowContextHelpButtonHint);
 	progress->setAttribute(Qt::WA_DeleteOnClose);
+	QObject::connect(progress, &QProgressDialog::canceled, resetProgress);
+	QObject::connect(progress, &QProgressDialog::finished, resetProgress);
 	progress->show(); progress->raise();
 }
 
@@ -72,11 +83,18 @@ void createProgressBar() {
 // Input: Percentage of progress of remuxing
 void updateProgress(int64_t i) {
 	if (progress == nullptr) {
-		errorPopup("QProgressDialog is null");
+		//errorPopup("QProgressDialog is null");
 		return;
 	}
 	if (i > progress->value())
 		progress->setValue(i);
+}
+
+
+bool cancelledProgress() {
+	if (progress == nullptr)
+		return true;
+	return progress->wasCanceled();
 }
 
 
@@ -182,6 +200,8 @@ void loadHotkeys(obs_data_t* obj) {
 
 bool checkMKV() {
 	isMKV = false; // reset
+	printf("before regex\n");
+	printf("filename: %s\n", filename.c_str());
 	regex re(".mkv$");
 	smatch m;
 	regex_search(filename, m, re);
@@ -202,6 +222,7 @@ void cleanupFiles(const string& f, const string& f2) {
 
 
 void startThread(string f) {
+	running = true;
 	// copy the encoding but give it metadata of chapters
 	regex re("(.*)\\.mkv$");
 	smatch m;
@@ -222,10 +243,15 @@ void startThread(string f) {
 	startRemux(f.c_str(), newFilename.c_str());
 	convertChapters();
 	finishRemux();
-	progress->setValue(100);
+	if (progress != nullptr) {
+		progress->setValue(100);
+		progress->close();
+		progress = nullptr;
+	}
 
-	// TODO uncomment after testing
-	// cleanupFiles(f, newFilename);
+	// TODO uncomment
+	//cleanupFiles(f, newFilename);
+	running = false;
 }
 
 
@@ -258,11 +284,18 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 	case OBS_FRONTEND_EVENT_RECORDING_STOPPED: {
 		if (chapters.size() == 0)
 			break;
-		if (_t.joinable()) { // wait for previous thread to finish 
-			errorPopup("Still duplicating last video, waiting to finish...");
-			_t.join();
+		if (filesystem::file_size(filename) > filesystem::space(filesystem::path(filename)).free) {
+			errorPopup("No space left for duplicate video! Aborting...");
+			break;
 		}
-		createProgressBar();
+
+		if (running) {
+			errorPopup("Still duplicating previous recording, aborting chapter creation for current recording!");
+			break;
+		}
+		if (_t.joinable()) // wait for previous thread to finish 
+			_t.join();
+		createProgressBar(); // Freezes if created within worker thread
 		_t = thread(startThread, filename);
 		break;
 	}
