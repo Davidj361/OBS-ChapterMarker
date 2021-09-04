@@ -1,5 +1,7 @@
 # Chapter Marker
 
+https://obsproject.com/forum/resources/chapter-marker.1323/
+
 This is a plugin for OBS that lets you add chapters to the video file you are recording which are marked via a hotkey. This is useful when recording videos and you want to mark and highlight an important part of the video thus making it easier to find those moments. Useful for gameplay highlights when recording lengthy videos.
 
 ## Building
