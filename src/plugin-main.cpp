@@ -62,6 +62,9 @@ void errorPopup(const char* s) {
 
 
 void resetProgress() {
+	if (progress == nullptr)
+		return;
+	QMetaObject::invokeMethod(progress, "close", Qt::QueuedConnection);
 	progress = nullptr;
 }
 
@@ -75,7 +78,6 @@ void createProgressBar() {
 	progress->setWindowFlags(progress->windowFlags() & ~Qt::WindowCloseButtonHint & ~Qt::WindowContextHelpButtonHint);
 	progress->setAttribute(Qt::WA_DeleteOnClose);
 	QObject::connect(progress, &QProgressDialog::canceled, resetProgress);
-	QObject::connect(progress, &QProgressDialog::finished, resetProgress);
 	progress->show(); progress->raise();
 }
 
@@ -237,10 +239,8 @@ void startThread(string f) {
 	startRemux(f.c_str(), newFilename.c_str());
 	convertChapters();
 	finishRemux();
-	if (progress != nullptr) {
-		updateProgress(100);
-		progress = nullptr;
-	}
+	if (progress != nullptr)
+		QMetaObject::invokeMethod(progress, "close", Qt::QueuedConnection);
 
 	// TODO uncomment
 	cleanupFiles(f, newFilename);
