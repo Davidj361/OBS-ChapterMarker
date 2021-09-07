@@ -31,6 +31,10 @@ extern "C" {
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
+
+/////////////////////////
+// Global variables START
+
 const static char* configFile = "ChapterMarker.json";
 obs_output_t* recording = nullptr;
 vector<uint64_t> chapters;
@@ -43,9 +47,12 @@ obs_hotkey_id chapterMarkerHotkey = OBS_INVALID_HOTKEY_ID;
 bool hotkeysRegistered = false;
 
 thread _t;
-bool running = false; // a way to check if the thread is done
+bool running = false; // a flag for worker thread
 
 QProgressDialog* progress = nullptr;
+
+// Global variables END
+/////////////////////////
 
 
 void crash(string s) {
@@ -84,10 +91,8 @@ void createProgressBar() {
 
 // Input: Percentage of progress for remuxing
 void updateProgress(int64_t i) {
-	if (progress == nullptr) {
-		//errorPopup("QProgressDialog is null");
+	if (progress == nullptr)
 		return;
-	}
 	QMetaObject::invokeMethod(progress, "setValue", Qt::QueuedConnection, Q_ARG(int, static_cast<int>(i)));
 }
 
@@ -139,8 +144,7 @@ uint64_t getOutputRunningTime() {
 }
 
 
-// Lambda function for hotkey
-auto HotkeyFunc = [](void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pressed) {
+void HotkeyFunc(void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pressed) {
 	UNUSED_PARAMETER(id);
 	UNUSED_PARAMETER(data);
 	UNUSED_PARAMETER(hotkey);
@@ -231,18 +235,12 @@ void startThread(string f) {
 
 	string newFilename = m[1].str() + " - ChapterMarker.mkv";
 
-	// TODO Remove after testing
-	// For testing long videos
-	//f = "F:/Videos/test.mkv";
-	//newFilename = "F:/Videos/test2.mkv";
-
 	startRemux(f.c_str(), newFilename.c_str());
 	convertChapters();
 	finishRemux();
 	if (progress != nullptr)
 		QMetaObject::invokeMethod(progress, "close", Qt::QueuedConnection);
 
-	// TODO uncomment
 	cleanupFiles(f, newFilename);
 	running = false;
 }
@@ -303,7 +301,6 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 bool obs_module_load(void) {
 	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 
-
 	
 	// For easy debugging
 #ifdef DEBUG
@@ -317,7 +314,6 @@ bool obs_module_load(void) {
 	freopen_s(&fDummy, "CONOUT$", "w", stdout);
 	printf("Hello console\n");
 #endif
-	
 
 
 	loadSettings();
