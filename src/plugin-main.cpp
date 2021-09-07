@@ -199,8 +199,6 @@ void loadHotkeys(obs_data_t* obj) {
 
 bool checkMKV() {
 	isMKV = false; // reset
-	printf("before regex\n");
-	printf("filename: %s\n", filename.c_str());
 	regex re(".mkv$");
 	smatch m;
 	regex_search(filename, m, re);
@@ -233,23 +231,19 @@ void startThread(string f) {
 
 	// TODO Remove after testing
 	// For testing long videos
-	f = "F:/Videos/test.mkv";
-	newFilename = "F:/Videos/test2.mkv";
-
-	printf("%s \n", f.c_str());
-	printf("%s \n", newFilename.c_str());
+	//f = "F:/Videos/test.mkv";
+	//newFilename = "F:/Videos/test2.mkv";
 
 	startRemux(f.c_str(), newFilename.c_str());
 	convertChapters();
 	finishRemux();
 	if (progress != nullptr) {
-		progress->setValue(100);
-		progress->close();
+		updateProgress(100);
 		progress = nullptr;
 	}
 
 	// TODO uncomment
-	//cleanupFiles(f, newFilename);
+	cleanupFiles(f, newFilename);
 	running = false;
 }
 
