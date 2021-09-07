@@ -6,7 +6,7 @@ This is a plugin for OBS that lets you add chapters to the video file you are re
 
 ## Building
 
-Use CMake to build the project, change the some of the variable in the `CMakeLists.txt`, i.e.
+Use CMake to build the project, change some of the variables in the `CMakeLists.txt`, i.e.
 ```cmake
 # Hackish CMake variables that were added to finally get this working
 set(LIBOBS_LIB "C:/Users/DJ/source/repos/obs-studio/build/libobs/Release")
