@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(obs-chaptermarker VERSION 1.0.0)
+project(obs-chaptermarker VERSION 1.0.2)
 
 set(PLUGIN_AUTHOR "David J")
 
