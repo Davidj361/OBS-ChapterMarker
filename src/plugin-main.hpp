@@ -26,6 +26,7 @@
 
 using namespace std;
 
+void updateProgress(int64_t i);
 void crash(string s);
 void convertChapters();
 void createSettingsDir();

@@ -80,14 +80,13 @@ void createProgressBar() {
 }
 
 
-// Input: Percentage of progress of remuxing
+// Input: Percentage of progress for remuxing
 void updateProgress(int64_t i) {
 	if (progress == nullptr) {
 		//errorPopup("QProgressDialog is null");
 		return;
 	}
-	if (i > progress->value())
-		progress->setValue(i);
+	QMetaObject::invokeMethod(progress, "setValue", Qt::QueuedConnection, Q_ARG(int, static_cast<int>(i)));
 }
 
 
