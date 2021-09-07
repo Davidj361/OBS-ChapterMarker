@@ -7,8 +7,11 @@
 #define EXTERNC
 #endif
 
+#pragma once
+
 #include <libavformat/avformat.h>
 #include <libavutil/timestamp.h>
+#include <stdbool.h>
 
 AVChapter* avpriv_new_chapter(int64_t id, AVRational time_base,
     int64_t start, int64_t end, const char* title);
@@ -17,3 +20,5 @@ int finishRemux();
 int end(int ret);
 
 EXTERNC void errorPopup(const char* s);
+EXTERNC void updateProgress(int64_t i);
+EXTERNC bool cancelledProgress();

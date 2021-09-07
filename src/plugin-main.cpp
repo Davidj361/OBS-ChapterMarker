@@ -31,6 +31,10 @@ extern "C" {
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
+
+/////////////////////////
+// Global variables START
+
 const static char* configFile = "ChapterMarker.json";
 obs_output_t* recording = nullptr;
 vector<uint64_t> chapters;
@@ -43,6 +47,12 @@ obs_hotkey_id chapterMarkerHotkey = OBS_INVALID_HOTKEY_ID;
 bool hotkeysRegistered = false;
 
 thread _t;
+bool running = false; // a flag for worker thread
+
+QProgressDialog* progress = nullptr;
+
+// Global variables END
+/////////////////////////
 
 
 void crash(string s) {
@@ -55,6 +65,42 @@ void crash(string s) {
 void errorPopup(const char* s) {
 	string str = "Chapter Marker Plugin: " + string(s);
 	QMessageBox::critical(0, QString("ERROR!"), QString::fromStdString(str), QMessageBox::Ok);
+}
+
+
+void resetProgress() {
+	if (progress == nullptr)
+		return;
+	QMetaObject::invokeMethod(progress, "close", Qt::QueuedConnection);
+	progress = nullptr;
+}
+
+
+void createProgressBar() {
+	if (progress != nullptr)
+		errorPopup("createProgressBar: progress != nullptr");
+	string message = filesystem::path(filename).filename().string() + "\nDuplicating video file with chapter metadata";
+	progress = new QProgressDialog(message.c_str(), "Cancel", 0, 100);
+	progress->setWindowTitle("Chapter Marker");
+	progress->setWindowFlags(progress->windowFlags() & ~Qt::WindowCloseButtonHint & ~Qt::WindowContextHelpButtonHint);
+	progress->setAttribute(Qt::WA_DeleteOnClose);
+	QObject::connect(progress, &QProgressDialog::canceled, resetProgress);
+	progress->show(); progress->raise();
+}
+
+
+// Input: Percentage of progress for remuxing
+void updateProgress(int64_t i) {
+	if (progress == nullptr)
+		return;
+	QMetaObject::invokeMethod(progress, "setValue", Qt::QueuedConnection, Q_ARG(int, static_cast<int>(i)));
+}
+
+
+bool cancelledProgress() {
+	if (progress == nullptr)
+		return true;
+	return progress->wasCanceled();
 }
 
 
@@ -98,8 +144,7 @@ uint64_t getOutputRunningTime() {
 }
 
 
-// Lambda function for hotkey
-auto HotkeyFunc = [](void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pressed) {
+void HotkeyFunc(void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pressed) {
 	UNUSED_PARAMETER(id);
 	UNUSED_PARAMETER(data);
 	UNUSED_PARAMETER(hotkey);
@@ -179,7 +224,8 @@ void cleanupFiles(const string& f, const string& f2) {
 }
 
 
-void startThread(const string f) {
+void startThread(string f) {
+	running = true;
 	// copy the encoding but give it metadata of chapters
 	regex re("(.*)\\.mkv$");
 	smatch m;
@@ -192,8 +238,11 @@ void startThread(const string f) {
 	startRemux(f.c_str(), newFilename.c_str());
 	convertChapters();
 	finishRemux();
+	if (progress != nullptr)
+		QMetaObject::invokeMethod(progress, "close", Qt::QueuedConnection);
 
 	cleanupFiles(f, newFilename);
+	running = false;
 }
 
 
@@ -226,8 +275,18 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 	case OBS_FRONTEND_EVENT_RECORDING_STOPPED: {
 		if (chapters.size() == 0)
 			break;
-		if (_t.joinable()) // wait for previous thread to finish
+		if (filesystem::file_size(filename) > filesystem::space(filesystem::path(filename)).free) {
+			errorPopup("No space left for duplicate video! Aborting...");
+			break;
+		}
+
+		if (running) {
+			errorPopup("Still duplicating previous recording, aborting chapter creation for current recording!");
+			break;
+		}
+		if (_t.joinable()) // wait for previous thread to finish 
 			_t.join();
+		createProgressBar(); // Freezes if created within worker thread
 		_t = thread(startThread, filename);
 		break;
 	}
@@ -242,9 +301,9 @@ auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
 bool obs_module_load(void) {
 	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 
-
-	/*
+	
 	// For easy debugging
+#ifdef DEBUG
 	if (AllocConsole())
 		blog(LOG_INFO, "alloc console succeeded");
 	else {
@@ -254,7 +313,7 @@ bool obs_module_load(void) {
 	FILE* fDummy = NULL;
 	freopen_s(&fDummy, "CONOUT$", "w", stdout);
 	printf("Hello console\n");
-	*/
+#endif
 
 
 	loadSettings();

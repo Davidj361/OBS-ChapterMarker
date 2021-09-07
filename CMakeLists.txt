@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(obs-chaptermarker VERSION 1.0.0)
+project(obs-chaptermarker VERSION 1.0.2)
 
 set(PLUGIN_AUTHOR "David J")
 
@@ -10,19 +10,19 @@ set(MAINTAINER_EMAIL "david.j.361@gmail.com")
 
 ##
 # Hackish CMake variables that were added to finally get this working
-set(LIBOBS_LIB "C:/Users/DJ/source/repos/obs-studio/build/libobs/Release")
-set(LIBOBS_INCLUDE_DIR "C:/Users/DJ/source/repos/obs-studio/libobs")
-set(LibObs_DIR "C:/Users/DJ/source/repos/obs-studio/build/libobs")
-set(Qt5_DIR "C:/Users/DJ/source/repos/Qt/5.15.2/msvc2019_64/lib/cmake/Qt5")
-set(OBS_FRONTEND_LIB "C:/Users/DJ/source/repos/obs-studio/build/UI/obs-frontend-api/Release/obs-frontend-api.lib")
+set(LIBOBS_LIB "F:/code/Visual Studio/Visual Studio Community 2019/obs-studio/build/libobs/Release")
+set(LIBOBS_INCLUDE_DIR "F:/code/Visual Studio/Visual Studio Community 2019/obs-studio/libobs")
+set(LibObs_DIR "F:/code/Visual Studio/Visual Studio Community 2019/obs-studio/build/libobs")
+set(Qt5_DIR "F:/code/Visual Studio/Visual Studio Community 2019/Qt/5.15.2/msvc2019_64/lib/cmake/Qt5")
+set(OBS_FRONTEND_LIB "F:/code/Visual Studio/Visual Studio Community 2019/obs-studio/build/UI/obs-frontend-api/Release/obs-frontend-api.lib")
 
 
-set(AVFORMAT_LIBRARY "C:/Users/DJ/source/repos/obs-deps/win64/bin/avformat.lib")
-set(AVFORMAT_INCLUDE_DIR "C:/Users/DJ/source/repos/obs-deps/win64/include")
-set(AVUTIL_LIBRARY "C:/Users/DJ/source/repos/obs-deps/win64/bin/avutil.lib")
-set(AVUTIL_INCLUDE_DIR "C:/Users/DJ/source/repos/obs-deps/win64/include")
-set(AVCODEC_LIBRARY "C:/Users/DJ/source/repos/obs-deps/win64/bin/avcodec.lib")
-set(AVCODEC_INCLUDE_DIR "C:/Users/DJ/source/repos/obs-deps/win64/include")
+set(AVFORMAT_LIBRARY "F:/code/Visual Studio/Visual Studio Community 2019/obs-deps/win64/bin/avformat.lib")
+set(AVFORMAT_INCLUDE_DIR "F:/code/Visual Studio/Visual Studio Community 2019/obs-deps/win64/include")
+set(AVUTIL_LIBRARY "F:/code/Visual Studio/Visual Studio Community 2019/obs-deps/win64/bin/avutil.lib")
+set(AVUTIL_INCLUDE_DIR "F:/code/Visual Studio/Visual Studio Community 2019/obs-deps/win64/include")
+set(AVCODEC_LIBRARY "F:/code/Visual Studio/Visual Studio Community 2019/obs-deps/win64/bin/avcodec.lib")
+set(AVCODEC_INCLUDE_DIR "F:/code/Visual Studio/Visual Studio Community 2019/obs-deps/win64/include")
 ##
 
 # TAKE NOTE: No need to edit things past this point
