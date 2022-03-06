@@ -27,3 +27,4 @@ set(OBS_FRONTEND_LIB "C:/Users/DJ/source/repos/obs-studio/build/UI/obs-frontend-
   - Each chapter will have a number as identification (starting with 1)
   - ![list of chapters in VLC-player](imgs/vlc_chapters_example.gif)
 - Markers are displayed differently according to the video player, so, an alternative is to list chapters using `ffprobe -show_chapters <your_video_name.mkv>`.
+- **obs-websocket users**: To push the hotkey "ChapterMarker"
