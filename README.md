@@ -2,7 +2,25 @@
 
 https://obsproject.com/forum/resources/chapter-marker.1323/
 
-This is a plugin for OBS that lets you add chapters to the video file you are recording which are marked via a hotkey. This is useful when recording videos and you want to mark and highlight an important part of the video thus making it easier to find those moments. Useful for gameplay highlights when recording lengthy videos.
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
+**Table of Contents**
+
+- [Chapter Marker](#chapter-marker)
+    - [Disclaimer](#disclaimer)
+    - [Building](#building)
+    - [Basic Usage](#basic-usage)
+
+<!-- markdown-toc end -->
+
+## Description
+
+This is a plugin for OBS that lets you add chapters to the video file you are recording which are marked via a hotkey. A great alternative to using InfoWriter. Useful for video highlights when recording lengthy videos. Can be used for gameplay analysis like analyzing deaths, or marking parts of a recording for editing purposes, or even just for gameplay highlights that you want in your killmontage.
+
+## Disclaimer
+
+* **Only operates when recording MKV files**. Reason being that MKV containers end up being the least corruptable in my opinion, but I might change that if people request it and test for me.
+* **2x the space of a recorded video is REQUIRED**. Meaning if your finished recording is 1 GB, you'll need at least 2 GB of free space on your drive. Reason being is that I cannot intercept the recording/encoding of OBS. Instead the recorded video is duplicated (remuxed) but with added on metadata and where the older recording is deleted and the newer one is renamed to the older one. If you don't have enough space on the drive you're recording onto then no duplication or deletion is made but OBS may bug out.
+
 
 ## Building
 
