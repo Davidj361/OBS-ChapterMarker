@@ -254,7 +254,7 @@ void startThread(string f) {
 
 // Callback for when a recording stops
 // Remaking the outputted video file with the chapters metadata
-auto EvenHandler = [](enum obs_frontend_event event, void* private_data) {
+auto EventHandler = [](enum obs_frontend_event event, void*) {
 	switch (event) {
 	case OBS_FRONTEND_EVENT_RECORDING_STARTED: {
 		chapters.clear();
@@ -323,7 +323,7 @@ bool obs_module_load(void) {
 
 
 	loadSettings();
-	obs_frontend_add_event_callback(EvenHandler, NULL);
+	obs_frontend_add_event_callback(EventHandler, NULL);
 	return true;
 }
 

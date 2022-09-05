@@ -6,7 +6,8 @@ static AVFormatContext* ifmt_ctx;
 static AVFormatContext* ofmt_ctx;
 static AVPacket pkt;
 static const char* in_filename, * out_filename;
-static int ret, i;
+static int ret;
+static size_t i;
 static int stream_index = 0;
 static int* stream_mapping = NULL;
 static int stream_mapping_size = 0;
@@ -17,7 +18,7 @@ AVChapter* avpriv_new_chapter(int64_t id, AVRational time_base,
     int64_t start, int64_t end, const char* title)
 {
     AVChapter* chapter = NULL;
-    int i, ret;
+    // int i, ret; // Remove if this works
 
     if (end != AV_NOPTS_VALUE && start > end) {
         //av_log(s, AV_LOG_ERROR, "Chapter end time %"PRId64" before start %"PRId64"\n", end, start);
@@ -28,7 +29,7 @@ AVChapter* avpriv_new_chapter(int64_t id, AVRational time_base,
         chapter = av_mallocz(sizeof(AVChapter));
         if (!chapter)
             return NULL;
-        ret = av_dynarray_add_nofree(&ofmt_ctx->chapters, &ofmt_ctx->nb_chapters, chapter); // automatically adjusts nb_chapters too
+        ret = av_dynarray_add_nofree(&ofmt_ctx->chapters, (int*) & ofmt_ctx->nb_chapters, chapter); // automatically adjusts nb_chapters too
         if (ret < 0) {
             av_free(chapter);
             return NULL;
@@ -44,16 +45,16 @@ AVChapter* avpriv_new_chapter(int64_t id, AVRational time_base,
 }
 
 
-static void log_packet(const AVFormatContext* fmt_ctx, const AVPacket* pkt, const char* tag)
+static void log_packet(const AVFormatContext* fmt_ctx, const AVPacket* inPkt, const char* tag)
 {
-    AVRational* time_base = &fmt_ctx->streams[pkt->stream_index]->time_base;
+    AVRational* time_base = &fmt_ctx->streams[inPkt->stream_index]->time_base;
 
     printf("%s: pts:%s pts_time:%s dts:%s dts_time:%s duration:%s duration_time:%s stream_index:%d\n",
         tag,
-        av_ts2str(pkt->pts), av_ts2timestr(pkt->pts, time_base),
-        av_ts2str(pkt->dts), av_ts2timestr(pkt->dts, time_base),
-        av_ts2str(pkt->duration), av_ts2timestr(pkt->duration, time_base),
-        pkt->stream_index);
+        av_ts2str(inPkt->pts), av_ts2timestr(inPkt->pts, time_base),
+        av_ts2str(inPkt->dts), av_ts2timestr(inPkt->dts, time_base),
+        av_ts2str(inPkt->duration), av_ts2timestr(inPkt->duration, time_base),
+        inPkt->stream_index);
 }
 
 
@@ -188,7 +189,7 @@ int finishRemux() {
     return end(ret);
 }
 
-int end(int ret) {
+int end(int retn) {
 
     avformat_close_input(&ifmt_ctx);
 
@@ -199,7 +200,7 @@ int end(int ret) {
 
     av_freep(&stream_mapping);
 
-    if (ret < 0 && ret != AVERROR_EOF) {
+    if (retn < 0 && retn != AVERROR_EOF) {
         errorPopup("Error occurred");
         return 1;
     }

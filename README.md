@@ -24,15 +24,11 @@ This is a plugin for OBS that lets you add chapters to the video file you are re
 
 ## Building
 
-Use CMake to build the project, change some of the variables in the `CMakeLists.txt`, i.e.
-```cmake
-# Hackish CMake variables that were added to finally get this working
-set(LIBOBS_LIB "C:/Users/DJ/source/repos/obs-studio/build/libobs/Release")
-set(LIBOBS_INCLUDE_DIR "C:/Users/DJ/source/repos/obs-studio/libobs")
-set(LibObs_DIR "C:/Users/DJ/source/repos/obs-studio/build/libobs")
-set(Qt5_DIR "C:/Users/DJ/source/repos/Qt/5.15.2/msvc2019_64/lib/cmake/Qt5")
-set(OBS_FRONTEND_LIB "C:/Users/DJ/source/repos/obs-studio/build/UI/obs-frontend-api/Release/obs-frontend-api.lib")
-```
+Use CMake to generate a project in your preferred toolchain (I used Visual Studio 2022) and compile with your toolchain.
+
+Set your CMAKE_PREFIX_PATH properly, an example is below.
+
+`F:/code/Visual Studio/Visual Studio Community 2019/obs-studio/build/libobs;F:/code/Visual Studio/Visual Studio Community 2019/obs-studio/build/deps/w32-pthreads;F:/code/Visual Studio/Visual Studio Community 2019/obs-studio/build/UI/obs-frontend-api;F:/code/Visual Studio/Visual Studio Community 2019/obs-deps/lib;F:/code/Visual Studio/Visual Studio Community 2019/obs-deps/include;F:/code/Visual Studio/Visual Studio Community 2019/obs-deps` 
 
 **Note**: The project uses C++17 and the project was forked off [https://github.com/obsproject/obs-plugintemplate](https://github.com/obsproject/obs-plugintemplate).
 
