@@ -83,9 +83,10 @@ void createProgressBar() {
 	progress = new QProgressDialog(message.c_str(), "Cancel", 0, 100);
 	progress->setWindowTitle("Chapter Marker");
 	progress->setWindowFlags(progress->windowFlags() & ~Qt::WindowCloseButtonHint & ~Qt::WindowContextHelpButtonHint);
+	progress->setAttribute(Qt::WA_ShowWithoutActivating);
 	progress->setAttribute(Qt::WA_DeleteOnClose);
 	QObject::connect(progress, &QProgressDialog::canceled, resetProgress);
-	progress->show(); progress->raise();
+	progress->show();
 }
 
 
@@ -234,6 +235,11 @@ void startThread(string f) {
 		crash("Didn't find the filename of the recording!");
 
 	string newFilename = m[1].str() + " - ChapterMarker.mkv";
+
+	// TODO Remove after testing
+	// For testing long videos
+	//f = "F:/Videos/test.mkv";
+	//newFilename = "F:/Videos/test2.mkv";
 
 	startRemux(f.c_str(), newFilename.c_str());
 	convertChapters();
