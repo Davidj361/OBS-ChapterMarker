@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
+#define DEBUG
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include <obs.h>
@@ -39,7 +40,6 @@ const static char* configFile = "ChapterMarker.json";
 obs_output_t* recording = nullptr;
 vector<uint64_t> chapters;
 string filename = "";
-bool isMKV = false;
 chrono::steady_clock::time_point start;
 uint64_t elapsed;
 
@@ -150,7 +150,7 @@ void HotkeyFunc(void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pressed
 	UNUSED_PARAMETER(data);
 	UNUSED_PARAMETER(hotkey);
 
-	if (pressed && obs_frontend_recording_active() && isMKV) {
+	if (pressed && obs_frontend_recording_active()) {
 		chapters.push_back(getOutputRunningTime());
 	}
 };
@@ -204,17 +204,6 @@ void loadHotkeys(obs_data_t* obj) {
 }
 
 
-bool checkMKV() {
-	isMKV = false; // reset
-	regex re(".mkv$");
-	smatch m;
-	regex_search(filename, m, re);
-	if (m.size() == 1)
-		isMKV = true;
-	return isMKV;
-}
-
-
 // Delete redundant video files so 2x space isn't taken
 void cleanupFiles(const string& f, const string& f2) {
 	// Don't delete anything if the chapter marker video wasn't created
@@ -228,18 +217,13 @@ void cleanupFiles(const string& f, const string& f2) {
 void startThread(string f) {
 	running = true;
 	// copy the encoding but give it metadata of chapters
-	regex re("(.*)\\.mkv$");
+	regex re("(.*)\\.(.*)$");
 	smatch m;
 	regex_search(f, m, re);
-	if (m.size() < 2)
+	if (m.size() < 3)
 		crash("Didn't find the filename of the recording!");
 
-	string newFilename = m[1].str() + " - ChapterMarker.mkv";
-
-	// TODO Remove after testing
-	// For testing long videos
-	//f = "F:/Videos/test.mkv";
-	//newFilename = "F:/Videos/test2.mkv";
+	string newFilename = m[1].str() + " - ChapterMarker." + m[2].str();
 
 	startRemux(f.c_str(), newFilename.c_str());
 	convertChapters();
@@ -260,10 +244,8 @@ auto EventHandler = [](enum obs_frontend_event event, void*) {
 		chapters.clear();
 		recording = obs_frontend_get_recording_output();
 		filename = GetCurrentRecordingFilename();
-		if (checkMKV()) {
-			start = chrono::steady_clock::now();
-			elapsed = 0;
-		}
+		start = chrono::steady_clock::now();
+		elapsed = 0;
 		break;
 	}
 
