@@ -33,12 +33,12 @@ find_package(obs-frontend-api REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::obs-frontend-api)
 
 # FFMPEG/libav stuff
-find_path(AVFORMAT_INCLUDE_DIR libavformat/avformat.h REQUIRED)
-find_library(AVFORMAT_LIBRARY avformat REQUIRED)
-find_path(AVUTIL_INCLUDE_DIR libavutil/avutil.h)
-find_library(AVUTIL_LIBRARY avutil)
-find_path(AVCODEC_INCLUDE_DIR libavcodec/avcodec.h)
-find_library(AVCODEC_LIBRARY avcodec)
+find_path(AVFORMAT_INCLUDE_DIR PATH_SUFFIXES include REQUIRED libavformat/avformat.h)
+find_library(AVFORMAT_LIBRARY PATH_SUFFIXES lib REQUIRED avformat)
+find_path(AVUTIL_INCLUDE_DIR PATH_SUFFIXES include REQUIRED libavutil/avutil.h)
+find_library(AVUTIL_LIBRARY PATH_SUFFIXES lib REQUIRED avutil)
+find_path(AVCODEC_INCLUDE_DIR PATH_SUFFIXES include REQUIRED libavcodec/avcodec.h)
+find_library(AVCODEC_LIBRARY PATH_SUFFIXES lib REQUIRED avcodec)
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   ${AVFORMAT_INCLUDE_DIR}
 	${AVUTIL_INCLUDE_DIR}
