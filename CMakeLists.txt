@@ -19,7 +19,9 @@ set(MAINTAINER_EMAIL "david.j.361@gmail.com")
 # e.g. in Xcode or Visual Studio
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 	src/plugin-main.cpp
+	src/plugin-main.hpp
   src/remux.c
+	src/remux.h
 )
 
 # Import libobs as main plugin dependency
@@ -27,17 +29,31 @@ find_package(libobs REQUIRED)
 include(cmake/ObsPluginHelpers.cmake)
 
 # Uncomment these lines if you want to use the OBS Frontend API in your plugin
-#[[
 find_package(obs-frontend-api REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::obs-frontend-api)
-#]]
+
+# FFMPEG/libav stuff
+find_path(AVFORMAT_INCLUDE_DIR libavformat/avformat.h REQUIRED)
+find_library(AVFORMAT_LIBRARY avformat REQUIRED)
+find_path(AVUTIL_INCLUDE_DIR libavutil/avutil.h)
+find_library(AVUTIL_LIBRARY avutil)
+find_path(AVCODEC_INCLUDE_DIR libavcodec/avcodec.h)
+find_library(AVCODEC_LIBRARY avcodec)
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+  ${AVFORMAT_INCLUDE_DIR}
+	${AVUTIL_INCLUDE_DIR}
+	${AVCODEC_INCLUDE_DIR}
+)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
+  ${AVUTIL_LIBRARY}
+  ${AVFORMAT_LIBRARY}
+	${AVCODEC_LIBRARY}
+)
 
 # Uncomment those lines if you want to use Qt in your plugin
-#[[
 find_qt(COMPONENTS Widgets Core)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt::Core Qt::Widgets)
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON)
-#]]
 
 configure_file(src/plugin-macros.h.in ${CMAKE_SOURCE_DIR}/src/plugin-macros.generated.h)
 
@@ -47,7 +63,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-macros.generated.h)
 
 # --- Platform-independent build settings ---
 
-# Should deal with headers
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs)
